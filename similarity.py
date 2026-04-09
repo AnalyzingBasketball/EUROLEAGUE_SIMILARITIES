@@ -575,33 +575,41 @@ def get_player_stats(p1, p2):
         pir = _v(player, ["PIR"]); g = _v(player, ["G"])
         return round(pir / g, 2) if (pir and g) else None
 
+    def _ratio(player, num_aliases, den_aliases, dec=2):
+        n = _v(player, num_aliases); d = _v(player, den_aliases)
+        return round(n / d, dec) if (n is not None and d and d > 0) else None
+
+    def _share(player, num_aliases, den_aliases):
+        n = _v(player, num_aliases); d = _v(player, den_aliases)
+        return round(n / d * 100, 1) if (n is not None and d and d > 0) else None
+
     rows = [
         # label, p1_val, p2_val, higher_is_better
-        ("G",       _fmt(_v(p1,["G"]),0),    _fmt(_v(p2,["G"]),0),    True),
-        ("MIN/G",   _fmt(_v(p1,["MP"])),     _fmt(_v(p2,["MP"])),     True),
-        ("PTS",     _fmt(_v(p1,["PTS"])),    _fmt(_v(p2,["PTS"])),    True),
-        ("AST",     _fmt(_v(p1,["AST"])),    _fmt(_v(p2,["AST"])),    True),
-        ("TRB",     _fmt(_v(p1,["TRB"])),    _fmt(_v(p2,["TRB"])),    True),
-        ("ORB",     _fmt(_v(p1,["ORB"])),    _fmt(_v(p2,["ORB"])),    True),
-        ("DRB",     _fmt(_v(p1,["DRB"])),    _fmt(_v(p2,["DRB"])),    True),
-        ("STL",     _fmt(_v(p1,["STL"])),    _fmt(_v(p2,["STL"])),    True),
-        ("BLK",     _fmt(_v(p1,["BLK"])),    _fmt(_v(p2,["BLK"])),    True),
-        ("TOV",     _fmt(_v(p1,["TOV"])),    _fmt(_v(p2,["TOV"])),    False),
-        ("FD",      _fmt(_v(p1,["FD"])),     _fmt(_v(p2,["FD"])),     True),
-        ("FG%",     _pct(_v(p1,["FG%"])),    _pct(_v(p2,["FG%"])),    True),
-        ("3P%",     _pct(_v(p1,["3P%"])),    _pct(_v(p2,["3P%"])),    True),
-        ("2P%",     _pct(_v(p1,["2P%"])),    _pct(_v(p2,["2P%"])),    True),
-        ("FT%",     _pct(_v(p1,["FT%"])),    _pct(_v(p2,["FT%"])),    True),
-        ("eFG%",    _pct(_v(p1,["EFG%","eFG%"])), _pct(_v(p2,["EFG%","eFG%"])), True),
-        ("TS%",     _pct(_v(p1,["TS%"])),    _pct(_v(p2,["TS%"])),    True),
-        ("AST%",    _pct(_v(p1,["AST%"])),   _pct(_v(p2,["AST%"])),   True),
-        ("TOV%",    _pct(_v(p1,["TOV%"])),   _pct(_v(p2,["TOV%"])),   False),
-        ("ORB%",    _pct(_v(p1,["ORB%"])),   _pct(_v(p2,["ORB%"])),   True),
-        ("DRB%",    _pct(_v(p1,["DRB%"])),   _pct(_v(p2,["DRB%"])),   True),
-        ("A/T",     _fmt(_v(p1,["A2T"]),2),  _fmt(_v(p2,["A2T"]),2),  True),
-        ("PIR/G",   _pir_pg(p1),             _pir_pg(p2),             True),
-        ("WIN%",    _pct(_v(p1,["WIN%"])),   _pct(_v(p2,["WIN%"])),   True),
-        ("START%",  _pct(_v(p1,["GS%"])),    _pct(_v(p2,["GS%"])),    True),
+        ("G",      _fmt(_v(p1,["G"]),0),              _fmt(_v(p2,["G"]),0),              True),
+        ("MIN/G",  _fmt(_v(p1,["MP"])),               _fmt(_v(p2,["MP"])),               True),
+        ("PTS",    _fmt(_v(p1,["PTS"])),              _fmt(_v(p2,["PTS"])),              True),
+        ("AST",    _fmt(_v(p1,["AST"])),              _fmt(_v(p2,["AST"])),              True),
+        ("TRB",    _fmt(_v(p1,["TRB"])),              _fmt(_v(p2,["TRB"])),              True),
+        ("ORB",    _fmt(_v(p1,["ORB"])),              _fmt(_v(p2,["ORB"])),              True),
+        ("DRB",    _fmt(_v(p1,["DRB"])),              _fmt(_v(p2,["DRB"])),              True),
+        ("STL",    _fmt(_v(p1,["STL"])),              _fmt(_v(p2,["STL"])),              True),
+        ("BLK",    _fmt(_v(p1,["BLK"])),              _fmt(_v(p2,["BLK"])),              True),
+        ("TOV",    _fmt(_v(p1,["TOV"])),              _fmt(_v(p2,["TOV"])),              False),
+        ("FD",     _fmt(_v(p1,["FD"])),               _fmt(_v(p2,["FD"])),               True),
+        ("FG%",    _pct(_v(p1,["FG%"])),              _pct(_v(p2,["FG%"])),              True),
+        ("3P%",    _pct(_v(p1,["3P%"])),              _pct(_v(p2,["3P%"])),              True),
+        ("2P%",    _pct(_v(p1,["2P%"])),              _pct(_v(p2,["2P%"])),              True),
+        ("FT%",    _pct(_v(p1,["FT%"])),              _pct(_v(p2,["FT%"])),              True),
+        ("eFG%",   _pct(_v(p1,["EFG%","eFG%"])),      _pct(_v(p2,["EFG%","eFG%"])),      True),
+        ("TS%",    _pct(_v(p1,["TS%"])),              _pct(_v(p2,["TS%"])),              True),
+        # Calculated ratios from per-game data (always available)
+        ("3PAr",   _share(p1,["3PA"],["FGA"]),        _share(p2,["3PA"],["FGA"]),        None),
+        ("FTr",    _share(p1,["FTA"],["FGA"]),        _share(p2,["FTA"],["FGA"]),        None),
+        ("A/T",    _ratio(p1,["AST"],["TOV"]),        _ratio(p2,["AST"],["TOV"]),        True),
+        ("STL/TOV",_ratio(p1,["STL"],["TOV"]),        _ratio(p2,["STL"],["TOV"]),        True),
+        ("PIR/G",  _pir_pg(p1),                       _pir_pg(p2),                       True),
+        ("WIN%",   _pct(_v(p1,["WIN%"])),             _pct(_v(p2,["WIN%"])),             True),
+        ("START%", _pct(_v(p1,["GS%"])),              _pct(_v(p2,["GS%"])),              True),
     ]
     return {
         "p1": p1, "p2": p2,
