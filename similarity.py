@@ -258,8 +258,12 @@ def _fetch_profiles(season_code):
 
 def _fetch_players(season_code=SEASON_CODE, min_games=MIN_GAMES):
     trad = _fetch_accumulated(season_code, "traditional")
-    try: adv = _fetch_accumulated(season_code, "advanced")
-    except: adv = {}
+    try: adv     = _fetch_accumulated(season_code, "advanced")
+    except: adv  = {}
+    try: misc    = _fetch_accumulated(season_code, "misc")
+    except: misc = {}
+    try: scoring = _fetch_accumulated(season_code, "scoring")
+    except: scoring = {}
     profiles = _fetch_profiles(season_code)
     records = []
     for code, p in trad.items():
@@ -284,7 +288,11 @@ def _fetch_players(season_code=SEASON_CODE, min_games=MIN_GAMES):
         prof  = profiles.get(code, {})
         _h = prof.get("height_m", np.nan)
         _h_cm = round(_h * 100) if (not isinstance(_h, float) or not np.isnan(_h)) and _h and _h > 0 else np.nan
+        pa = adv.get(code, {});  pm = misc.get(code, {});  ps = scoring.get(code, {})
+        _w = _safe_float(pm.get("wins")); _l = _safe_float(pm.get("losses"))
+        win_pct = _w/(_w+_l) if (not np.isnan(_w) and not np.isnan(_l) and (_w+_l)>0) else np.nan
         rec = {
+            # ── Identity ──────────────────────────────────────────
             "Player": _fmt_name(pl.get("name", "")),
             "Team":   _clean_team(team.get("name", "")),
             "Age":    _safe_float(pl.get("age")),
@@ -292,16 +300,40 @@ def _fetch_players(season_code=SEASON_CODE, min_games=MIN_GAMES):
             "Pos":    prof.get("pos", np.nan),
             "Height": _h_cm,
             "Weight": prof.get("weight_kg", np.nan),
-            "G": gp, "MP": _pg(p.get("minutesPlayed")),
+            # ── Traditional (box score per game) ──────────────────
+            "G": gp, "GS": _safe_float(p.get("gamesStarted")),
+            "MP": _pg(p.get("minutesPlayed")),
             "FG": _pg(fg_t), "FGA": _pg(fga_t), "FG%": fgp,
             "3P": _pg(fg3),  "3PA": _pg(fg3a),  "3P%": fg3p,
             "2P": _pg(fg2),  "2PA": _pg(fg2a),  "2P%": fg2p, "eFG%": efgp,
-            "FT": _pg(p.get("freeThrowsMade")), "FTA": _pg(p.get("freeThrowsAttempted")), "FT%": ftp,
+            "FT": _pg(ft),   "FTA": _pg(fta),   "FT%": ftp,
             "ORB": _pg(p.get("offensiveRebounds")), "DRB": _pg(p.get("defensiveRebounds")),
-            "TRB": _pg(p.get("totalRebounds")), "AST": _pg(p.get("assists")),
-            "STL": _pg(p.get("steals")), "BLK": _pg(p.get("blocks")),
+            "TRB": _pg(p.get("totalRebounds")),
+            "AST": _pg(p.get("assists")), "STL": _pg(p.get("steals")),
+            "BLK": _pg(p.get("blocks")),  "BKA": _pg(p.get("blocksAgainst")),
             "TOV": _pg(p.get("turnovers")), "PF": _pg(p.get("foulsCommited")),
-            "PTS": _pg(p.get("pointsScored")),
+            "FD":  _pg(p.get("foulsDrawn")), "PTS": _pg(p.get("pointsScored")),
+            "PIR": _safe_float(p.get("pir")),
+            # ── Advanced (possession-adjusted from API) ───────────
+            "ORB%":  _safe_float(pa.get("offensiveReboundsPercentage")),
+            "DRB%":  _safe_float(pa.get("defensiveReboundsPercentage")),
+            "REB%":  _safe_float(pa.get("reboundsPercentage")),
+            "AST%":  _safe_float(pa.get("assistsRatio")),
+            "TOV%":  _safe_float(pa.get("turnoversRatio")),
+            "A2T":   _safe_float(pa.get("assistsToTurnoversRatio")),
+            "POSS":  _safe_float(pa.get("possesions")),
+            # ── Misc ──────────────────────────────────────────────
+            "WIN%":  win_pct,
+            "DD":    _safe_float(pm.get("doubleDoubles")),
+            "TD3":   _safe_float(pm.get("tripleDoubles")),
+            # ── Scoring distribution ──────────────────────────────
+            "PTS_2P%": _safe_float(ps.get("pointsFromTwoPointersPercentage")),
+            "PTS_3P%": _safe_float(ps.get("pointsFromThreePointersPercentage")),
+            "PTS_FT%": _safe_float(ps.get("pointsFromFreeThrowsPercentage")),
+            "2PA_SH":  _safe_float(ps.get("twoPointAttemptsShare")),
+            "3PA_SH":  _safe_float(ps.get("threePointAttemptsShare")),
+            "2PT_R":   _safe_float(ps.get("twoPointRate")),
+            "3PT_R":   _safe_float(ps.get("threePointRate")),
         }
         if rec["Player"]: records.append(rec)
     df = pd.DataFrame(records)
@@ -331,8 +363,10 @@ def _process(df_raw):
         dt[col_nat] = dt[col_nat].astype(str).str.strip().str.upper()
         dt.loc[dt[col_nat].isin(["","NAN","NONE"]), col_nat] = np.nan
 
-    basic_names = ["G","MP","FG","FGA","FG%","3P","3PA","3P%","2P","2PA","2P%","EFG%",
-                   "FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS"]
+    basic_names = ["G","GS","MP","FG","FGA","FG%","3P","3PA","3P%","2P","2PA","2P%","EFG%",
+                   "FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","BKA","TOV","PF","FD","PTS","PIR",
+                   "ORB%","DRB%","REB%","AST%","TOV%","A2T","POSS","WIN%","DD","TD3",
+                   "PTS_2P%","PTS_3P%","PTS_FT%","2PA_SH","3PA_SH","2PT_R","3PT_R"]
     for name in basic_names:
         c = _find_col(dt, [name])
         if c: dt[c] = pd.to_numeric(dt[c], errors="coerce")
@@ -355,16 +389,22 @@ def _process(df_raw):
     for c in ["FG%","3P%","2P%","EFG%","FT%","TS%","3PAR","FTR","TOV%_SHOOT"]:
         if c in dt.columns: dt[c] = dt[c].clip(0, 1)
 
-    for base in ["FG","FGA","3P","3PA","2P","2PA","FT","FTA","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS"]:
+    for base in ["FG","FGA","3P","3PA","2P","2PA","FT","FTA","ORB","DRB","TRB","AST","STL","BLK","BKA","TOV","PF","FD","PTS"]:
         cb = _find_col(dt, [base])
         if cb and c_MP: dt[f"{base}_per36"] = (dt[cb]*36)/dt[c_MP].replace(0, np.nan)
+
+    # GS% (starter rate) — useful filter proxy
+    c_GS = _find_col(dt, ["GS"]); c_G = _find_col(dt, ["G"])
+    if c_GS and c_G: dt["GS%"] = (dt[c_GS] / dt[c_G].replace(0, np.nan)).clip(0, 1)
 
     _num = dt.select_dtypes("float64").columns
     dt[_num] = dt[_num].astype("float32"); gc.collect()
 
     rate_cols  = _present(dt, ["FG%","3P%","2P%","EFG%","FT%","TS%","3PAR","FTR","TOV%_SHOOT"])
-    per36_cols = _present(dt, [f"{c}_per36" for c in ["PTS","AST","TRB","STL","BLK","TOV","3P","FTA"]])
-    stats_cols = rate_cols + per36_cols
+    per36_cols = _present(dt, [f"{c}_per36" for c in ["PTS","AST","TRB","STL","BLK","BKA","TOV","3P","FTA","FD"]])
+    adv_cols   = _present(dt, ["ORB%","DRB%","REB%","AST%","TOV%","A2T","GS%"])
+    score_cols = _present(dt, ["PTS_2P%","PTS_3P%","PTS_FT%","2PA_SH","3PA_SH","2PT_R","3PT_R"])
+    stats_cols = rate_cols + per36_cols + adv_cols + score_cols
     basic_num_cols = _present(dt, basic_names)
 
     dt["Team"]   = dt[col_team]
@@ -484,16 +524,29 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
     uniq = dt.drop_duplicates("Player").set_index("Player")
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
     ch = _CACHE["col_height"]; cw = _CACHE["col_weight"]
+    c_pir  = _find_col(dt, ["PIR"])
+    c_gs   = _find_col(dt, ["GS%"])
+    c_win  = _find_col(dt, ["WIN%"])
+
+    def _val(col, pname, cast=float):
+        if col and pname in uniq.index and pd.notna(uniq.loc[pname, col]):
+            try: return cast(uniq.loc[pname, col])
+            except: pass
+        return None
+
     results = []
     for pname, corr in top.items():
         results.append({
-            "player": pname,
-            "team": uniq.loc[pname, "Team"] if pname in uniq.index else "",
-            "position": str(uniq.loc[pname, cp]) if (cp and pname in uniq.index) else "",
-            "age": float(uniq.loc[pname, ca]) if (ca and pname in uniq.index and pd.notna(uniq.loc[pname, ca])) else None,
-            "nationality": str(uniq.loc[pname, cn]) if (cn and pname in uniq.index) else "",
-            "height": int(uniq.loc[pname, ch]) if (ch and pname in uniq.index and pd.notna(uniq.loc[pname, ch])) else None,
-            "weight": int(uniq.loc[pname, cw]) if (cw and pname in uniq.index and pd.notna(uniq.loc[pname, cw])) else None,
+            "player":          pname,
+            "team":            uniq.loc[pname, "Team"] if pname in uniq.index else "",
+            "position":        str(uniq.loc[pname, cp]) if (cp and pname in uniq.index) else "",
+            "age":             _val(ca, pname),
+            "nationality":     str(uniq.loc[pname, cn]) if (cn and pname in uniq.index) else "",
+            "height":          _val(ch, pname, int),
+            "weight":          _val(cw, pname, int),
+            "pir":             _val(c_pir, pname),
+            "starter_pct":     round(_val(c_gs, pname) * 100) if _val(c_gs, pname) is not None else None,
+            "win_pct":         round(_val(c_win, pname) * 100) if _val(c_win, pname) is not None else None,
             "correlation_pct": float(np.clip(corr, -1, 1)) * 100.0,
         })
     return {"player": player, "similar": results}

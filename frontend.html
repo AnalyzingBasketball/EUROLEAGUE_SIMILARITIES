@@ -383,7 +383,8 @@
     qs('results-title').textContent = 'Top ' + rows.length + ' similar players to ' + data.player;
 
     var html = '<div class="el-table-wrap"><table class="el-table"><thead><tr>'
-      + '<th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Age</th><th>Nat</th><th>Ht</th><th>Wt</th><th>% Match</th>'
+      + '<th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Age</th><th>Nat</th>'
+      + '<th>Ht</th><th>Wt</th><th>PIR</th><th>Start%</th><th>Win%</th><th>% Match</th>'
       + '</tr></thead><tbody>';
     rows.forEach(function(r, i) {
       html += '<tr onclick="selectFromTable(' + JSON.stringify(r.player) + ',' + r.correlation_pct.toFixed(4) + ')">'
@@ -395,6 +396,9 @@
         + '<td>' + (r.nationality||'-') + '</td>'
         + '<td>' + (r.height ? r.height + ' cm' : '-') + '</td>'
         + '<td>' + (r.weight ? r.weight + ' kg' : '-') + '</td>'
+        + '<td>' + (r.pir != null ? r.pir.toFixed(1) : '-') + '</td>'
+        + '<td>' + (r.starter_pct != null ? r.starter_pct + '%' : '-') + '</td>'
+        + '<td>' + (r.win_pct != null ? r.win_pct + '%' : '-') + '</td>'
         + '<td>' + r.correlation_pct.toFixed(3) + '%</td>'
         + '</tr>';
     });
