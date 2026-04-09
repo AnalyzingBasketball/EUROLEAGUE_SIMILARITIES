@@ -737,8 +737,8 @@ def generate_charts(p1, p2):
         labels = [c.upper() for c in radar_cols]
         vals1 += [vals1[0]]; vals2 += [vals2[0]]
         angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist() + [0]
-        fig = plt.figure(figsize=(4.0, 4.0))
-        ax  = plt.subplot(111, polar=True)
+        fig = plt.figure(figsize=(4.2, 5.0))
+        ax  = fig.add_subplot(111, polar=True)
         ax.set_theta_offset(np.pi/2); ax.set_theta_direction(-1)
         ax.set_facecolor("#f4f6fa")
         ax.set_xticks(angles[:-1], labels)
@@ -750,9 +750,10 @@ def generate_charts(p1, p2):
         ax.grid(color="gray", linestyle="dotted", alpha=0.5)
         ax.set_title("Radar — Global percentiles (0–100)", pad=10, fontweight="bold", fontsize=8)
         ax.tick_params(labelsize=6)
-        ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False, fontsize=7)
-        plt.tight_layout()
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False, fontsize=7)
+        fig.subplots_adjust(bottom=0.18)
         charts["radar"] = _fig_b64(fig)
+        plt.close(fig)
 
     return {
         "player1": p1, "player2": p2,
