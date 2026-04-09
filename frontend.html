@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Euroleague Similarity Explorer 2025/26</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #f5f6fa; font-family: 'Ubuntu', sans-serif; }
+
+    .el-container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+    /* ── Header ── */
+    .el-header {
+      background: linear-gradient(135deg, #0047ff 0%, #0033cc 100%);
+      padding: 24px 30px; border-radius: 8px; margin-bottom: 28px;
+      box-shadow: 0 4px 15px rgba(0,71,255,0.25);
+    }
+    .el-header h1 {
+      color: #fff; font-size: 22px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.2px; margin: 0 0 4px;
+    }
+    .el-header p { color: rgba(255,255,255,0.85); margin: 0; font-size: 13px; }
+
+    /* ── Cards ── */
+    .el-card {
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+      padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+    .el-card h3 {
+      color: #0047ff; margin: 0 0 8px; font-size: 18px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .el-card p.el-desc {
+      font-size: 13px; color: #555; text-align: justify;
+      margin-bottom: 18px; line-height: 1.55;
+    }
+
+    /* ── Grid ── */
+    .el-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .el-grid { grid-template-columns: 1fr; } }
+
+    /* ── Form elements ── */
+    .el-label {
+      display: block; font-size: 13px; font-weight: 700; color: #333;
+      text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.4px;
+    }
+    .el-select, .el-input {
+      width: 100%; height: 46px; padding: 8px 12px; margin-bottom: 14px;
+      border: 1px solid #ccc; border-radius: 0; background: #fff;
+      font-family: 'Ubuntu', sans-serif; font-size: 15px; color: #333;
+    }
+    .el-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .el-row > div { flex: 1; min-width: 130px; }
+    .el-row .el-select, .el-row .el-input { margin-bottom: 14px; }
+
+    /* ── Buttons ── */
+    .el-btn {
+      width: 100%; font-family: 'Ubuntu', sans-serif;
+      background-color: #0047ff; color: #fff; padding: 14px;
+      border: none; border-radius: 4px; font-size: 15px; font-weight: 700;
+      text-transform: uppercase; cursor: pointer;
+      transition: background-color 0.25s; letter-spacing: 0.5px;
+    }
+    .el-btn:hover   { background-color: #0033cc; }
+    .el-btn:disabled { background-color: #666; cursor: wait; }
+    .el-btn-green { background-color: #1e8c45; }
+    .el-btn-green:hover { background-color: #166b34; }
+
+    /* ── Results table ── */
+    .el-table-wrap { overflow-x: auto; margin-top: 12px; }
+    table.el-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.el-table th {
+      background: #0047ff; color: #fff; padding: 8px 10px;
+      text-align: left; white-space: nowrap; font-weight: 700; font-size: 12px;
+      text-transform: uppercase;
+    }
+    table.el-table td { padding: 7px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
+    table.el-table tr:nth-child(even) td { background: #f7f9ff; }
+    table.el-table tr.el-sel td { background: #ddeaff !important; }
+    table.el-table tbody tr { cursor: pointer; transition: background 0.15s; }
+    table.el-table tbody tr:hover td { background: #eef2ff !important; }
+
+    /* ── Charts ── */
+    .el-chart-title {
+      font-size: 12px; font-weight: 700; color: #333;
+      text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.4px;
+    }
+    .el-chart-wrap img { width: 100%; border: 1px solid #eee; border-radius: 4px; }
+    .el-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 700px) { .el-charts-grid { grid-template-columns: 1fr; } }
+    .el-radar-wrap { max-width: 540px; margin: 0 auto 20px; }
+
+    /* ── Misc ── */
+    .el-badge {
+      display: inline-block; padding: 3px 12px; border-radius: 16px;
+      font-weight: 700; font-size: 13px; color: #fff; margin-left: 8px;
+    }
+    .el-hidden   { display: none !important; }
+    .el-loading  { text-align: center; padding: 28px; color: #0047ff; font-weight: 700; }
+    .el-error    { color: #e53e3e; font-weight: 700; padding: 10px 0; font-size: 14px; }
+    .el-divider  { border: none; border-top: 1px solid #e8e8e8; margin: 18px 0; }
+    .el-h2h-block { margin-top: 20px; }
+    .el-h2h-row  { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .el-h2h-row > div { flex: 1; min-width: 180px; }
+    .el-h2h-row .el-select { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+<div class="el-container">
+
+  <!-- Header -->
+  <div class="el-header">
+    <h1>Euroleague Similarity Explorer</h1>
+    <p>Season 2025/2026 — Performance-based player similarity via PCA &amp; cosine similarity</p>
+  </div>
+
+  <!-- Filter card -->
+  <div class="el-card">
+    <h3>Find Similar Players</h3>
+    <p class="el-desc">
+      Use the filters below to narrow the player pool, then choose a player to discover
+      the most similar performers in the Euroleague this season.
+    </p>
+
+    <div class="el-row">
+      <div>
+        <label class="el-label" for="f-team">Team</label>
+        <select id="f-team" class="el-select" onchange="onFilterChange()">
+          <option value="">All teams</option>
+        </select>
+      </div>
+      <div>
+        <label class="el-label" for="f-pos">Position</label>
+        <select id="f-pos" class="el-select" onchange="onFilterChange()">
+          <option value="">All positions</option>
+        </select>
+      </div>
+      <div>
+        <label class="el-label" for="f-nat">Nationality</label>
+        <select id="f-nat" class="el-select" onchange="onFilterChange()">
+          <option value="">All nationalities</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="el-row">
+      <div>
+        <label class="el-label" for="f-age-min">Min Age</label>
+        <input type="number" id="f-age-min" class="el-input" value="16" min="15" max="50" onchange="onFilterChange()">
+      </div>
+      <div>
+        <label class="el-label" for="f-age-max">Max Age</label>
+        <input type="number" id="f-age-max" class="el-input" value="45" min="15" max="50" onchange="onFilterChange()">
+      </div>
+      <div>
+        <label class="el-label" for="f-k">Top K</label>
+        <select id="f-k" class="el-select">
+          <option value="3">3 players</option>
+          <option value="5" selected>5 players</option>
+          <option value="7">7 players</option>
+          <option value="10">10 players</option>
+        </select>
+      </div>
+      <div>
+        <label class="el-label" for="f-same">Rivals</label>
+        <select id="f-same" class="el-select">
+          <option value="false" selected>Exclude same team</option>
+          <option value="true">Include same team</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="el-row">
+      <div style="flex:2;">
+        <label class="el-label" for="f-player">Player</label>
+        <select id="f-player" class="el-select">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="el-btn" id="btn-find" onclick="findSimilar()">Find Similar Players</button>
+    <div id="status-find" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Results card -->
+  <div id="card-results" class="el-card el-hidden">
+    <h3 id="results-title">Similar Players</h3>
+    <div id="results-table"></div>
+
+    <hr class="el-divider">
+
+    <div class="el-h2h-block">
+      <h3>Head-to-Head Comparison</h3>
+      <p class="el-desc">Pick a player to compare — either from the similar list or any Euroleague player.</p>
+      <div class="el-h2h-row">
+        <div>
+          <label class="el-label">From similar players</label>
+          <select id="cmp-similar" class="el-select" onchange="onCmpChange(this.value,'similar')">
+            <option value="">-- Select --</option>
+          </select>
+        </div>
+        <div>
+          <label class="el-label">Or any player</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="cmp-manual" class="el-select" style="margin-bottom:0;flex:1;" onchange="onCmpChange(this.value,'manual')">
+              <option value="">-- Select --</option>
+            </select>
+            <span id="corr-badge"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts card -->
+  <div id="card-charts" class="el-card el-hidden">
+    <h3 id="charts-title">Head-to-Head Charts</h3>
+    <div id="charts-loading" class="el-loading">Generating charts…</div>
+
+    <div id="charts-content" class="el-hidden">
+      <!-- Radar full-width -->
+      <div class="el-radar-wrap">
+        <div class="el-chart-title">Radar — Global Percentiles (0–100)</div>
+        <img id="chart-radar" src="" alt="Radar">
+      </div>
+
+      <div class="el-charts-grid">
+        <div class="el-chart-wrap">
+          <div class="el-chart-title">Basic — Percentages</div>
+          <img id="chart-percentages" src="" alt="">
+        </div>
+        <div class="el-chart-wrap">
+          <div class="el-chart-title">Basic — Per-game Volumes</div>
+          <img id="chart-volumes" src="" alt="">
+        </div>
+        <div class="el-chart-wrap">
+          <div class="el-chart-title">Advanced — Ratios</div>
+          <img id="chart-ratios" src="" alt="">
+        </div>
+        <div class="el-chart-wrap">
+          <div class="el-chart-title">Advanced — Per 36 minutes</div>
+          <img id="chart-per36" src="" alt="">
+        </div>
+        <div class="el-chart-wrap">
+          <div class="el-chart-title">Games &amp; Minutes</div>
+          <img id="chart-games_minutes" src="" alt="">
+        </div>
+      </div>
+
+      <div style="margin-top:22px;">
+        <button class="el-btn el-btn-green" id="btn-pdf" onclick="exportPDF()">Export PDF</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+(function() {
+  var _player  = null;
+  var _compare = null;
+  var _corrPct = null;
+  var _similar = [];
+  var _filters = {};
+
+  /* ── Utilities ─────────────────────────────────────────── */
+  function qs(id)  { return document.getElementById(id); }
+  function url(path, params) {
+    if (!params) return path;
+    var pairs = [];
+    for (var k in params) {
+      if (params[k] !== '' && params[k] !== null && params[k] !== undefined)
+        pairs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+    }
+    return pairs.length ? path + '?' + pairs.join('&') : path;
+  }
+  function fillSelect(id, items, placeholder) {
+    var sel = qs(id), cur = sel.value;
+    sel.innerHTML = '';
+    if (placeholder) { var o = new Option(placeholder, ''); sel.add(o); }
+    (items||[]).forEach(function(v) {
+      var o = new Option(v, v);
+      if (v === cur) o.selected = true;
+      sel.add(o);
+    });
+  }
+  function setBtn(btnId, label, loading) {
+    var b = qs(btnId);
+    b._label = b._label || b.textContent;
+    b.textContent  = loading ? label : (b._label || label);
+    b.disabled     = !!loading;
+    b.style.backgroundColor = loading ? '#666' : '';
+  }
+
+  /* ── Init ───────────────────────────────────────────────── */
+  window.addEventListener('load', function() { loadFilters(); });
+
+  function filters() {
+    return {
+      team:    qs('f-team').value,
+      pos:     qs('f-pos').value,
+      nat:     qs('f-nat').value,
+      age_min: qs('f-age-min').value,
+      age_max: qs('f-age-max').value
+    };
+  }
+
+  function loadFilters() {
+    fetch('/api/players')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        fillSelect('f-team', d.teams, 'All teams');
+        fillSelect('f-pos',  d.positions, 'All positions');
+        fillSelect('f-nat',  d.nationalities, 'All nationalities');
+        qs('f-age-min').value = d.age_min || 16;
+        qs('f-age-max').value = d.age_max || 45;
+        fillSelect('f-player', d.players, null);
+      })
+      .catch(function(e) {
+        qs('status-find').innerHTML = '<p class="el-error">Error loading data: ' + e.message + '</p>';
+      });
+  }
+
+  window.onFilterChange = function() {
+    var p = filters();
+    fetch(url('/api/players', p))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var cur = qs('f-player').value;
+        fillSelect('f-player', d.players, null);
+        if (cur && d.players.indexOf(cur) >= 0) qs('f-player').value = cur;
+      });
+  };
+
+  /* ── Find similar ───────────────────────────────────────── */
+  window.findSimilar = function() {
+    var player = qs('f-player').value;
+    if (!player) { qs('status-find').innerHTML = '<p class="el-error">Please select a player.</p>'; return; }
+    _player  = player;
+    _filters = filters();
+    setBtn('btn-find', 'Computing similarity…', true);
+    qs('status-find').innerHTML = '';
+    qs('card-results').classList.add('el-hidden');
+    qs('card-charts').classList.add('el-hidden');
+
+    var params = Object.assign({}, _filters, {
+      player: player,
+      k: qs('f-k').value,
+      include_same: qs('f-same').value
+    });
+
+    fetch(url('/api/similar', params))
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e){ throw new Error(e.detail||'Error'); });
+        return r.json();
+      })
+      .then(function(data) {
+        setBtn('btn-find', '', false);
+        _similar = data.similar || [];
+        renderResults(data);
+        // populate manual dropdown with all players
+        fetch('/api/players')
+          .then(function(r) { return r.json(); })
+          .then(function(d) { fillSelect('cmp-manual', d.players, '-- Any player --'); });
+      })
+      .catch(function(e) {
+        setBtn('btn-find', '', false);
+        qs('status-find').innerHTML = '<p class="el-error">Error: ' + e.message + '</p>';
+      });
+  };
+
+  function renderResults(data) {
+    var rows = data.similar || [];
+    qs('results-title').textContent = 'Top ' + rows.length + ' similar players to ' + data.player;
+
+    var html = '<div class="el-table-wrap"><table class="el-table"><thead><tr>'
+      + '<th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Age</th><th>Nat</th><th>% Match</th>'
+      + '</tr></thead><tbody>';
+    rows.forEach(function(r, i) {
+      html += '<tr onclick="selectFromTable(' + JSON.stringify(r.player) + ',' + r.correlation_pct.toFixed(4) + ')">'
+        + '<td>' + (i+1) + '</td>'
+        + '<td><b>' + r.player + '</b></td>'
+        + '<td>' + (r.team||'-') + '</td>'
+        + '<td>' + (r.position||'-') + '</td>'
+        + '<td>' + (r.age ? Math.round(r.age) : '-') + '</td>'
+        + '<td>' + (r.nationality||'-') + '</td>'
+        + '<td>' + r.correlation_pct.toFixed(3) + '%</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    qs('results-table').innerHTML = html;
+
+    fillSelect('cmp-similar', rows.map(function(r){ return r.player; }), '-- Select --');
+    qs('card-results').classList.remove('el-hidden');
+
+    if (rows.length > 0) {
+      setTimeout(function() { selectCompare(rows[0].player, rows[0].correlation_pct); }, 80);
+    }
+  }
+
+  window.selectFromTable = function(player, corrPct) { selectCompare(player, corrPct); };
+
+  function selectCompare(player, corrPct) {
+    _compare = player;
+    _corrPct = corrPct;
+
+    // highlight row
+    document.querySelectorAll('table.el-table tbody tr').forEach(function(tr) {
+      tr.classList.remove('el-sel');
+      var td = tr.cells[1];
+      if (td && td.textContent === player) tr.classList.add('el-sel');
+    });
+
+    // sync similar dropdown
+    var sel = qs('cmp-similar');
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === player) { sel.selectedIndex = i; break; }
+    }
+    qs('cmp-manual').value = '';
+    qs('corr-badge').innerHTML = '';
+
+    loadCharts(_player, player, corrPct);
+  }
+
+  window.onCmpChange = function(player, src) {
+    if (!player) return;
+    if (src === 'similar') {
+      var found = _similar.find(function(r){ return r.player === player; });
+      if (found) selectCompare(player, found.correlation_pct);
+    } else {
+      _compare = player;
+      _corrPct = null;
+      // clear similar dropdown
+      qs('cmp-similar').value = '';
+      // fetch correlation from a wide similarity call
+      var p = Object.assign({}, _filters, { player: _player, k: 50, include_same: 'true' });
+      fetch(url('/api/similar', p))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var f = (d.similar||[]).find(function(r){ return r.player === player; });
+          if (f) {
+            _corrPct = f.correlation_pct;
+            var bg = f.correlation_pct >= 80 ? '#1e8c45' : (f.correlation_pct >= 60 ? '#e07b00' : '#c0392b');
+            qs('corr-badge').innerHTML = '<span class="el-badge" style="background:'+bg+'">' + f.correlation_pct.toFixed(1) + '% match</span>';
+          }
+        });
+      loadCharts(_player, player, null);
+    }
+  };
+
+  /* ── Charts ─────────────────────────────────────────────── */
+  function loadCharts(p1, p2, corrPct) {
+    qs('card-charts').classList.remove('el-hidden');
+    qs('charts-loading').classList.remove('el-hidden');
+    qs('charts-content').classList.add('el-hidden');
+
+    var suffix = corrPct !== null && corrPct !== undefined ? ' — ' + corrPct.toFixed(1) + '% match' : '';
+    qs('charts-title').textContent = p1 + ' vs ' + p2 + suffix;
+
+    fetch(url('/api/charts', { p1: p1, p2: p2 }))
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(e){ throw new Error(e.detail||'Error'); });
+        return r.json();
+      })
+      .then(function(data) {
+        qs('charts-loading').classList.add('el-hidden');
+        qs('charts-content').classList.remove('el-hidden');
+        var charts = data.charts || {};
+        Object.keys(charts).forEach(function(key) {
+          var img = qs('chart-' + key);
+          if (img) img.src = 'data:image/png;base64,' + charts[key];
+        });
+      })
+      .catch(function(e) {
+        qs('charts-loading').innerHTML = '<p class="el-error">Error generating charts: ' + e.message + '</p>';
+      });
+  }
+
+  /* ── PDF ────────────────────────────────────────────────── */
+  window.exportPDF = function() {
+    if (!_player || !_compare) return;
+    var params = Object.assign({}, _filters, {
+      p1: _player, p2: _compare,
+      k: qs('f-k').value,
+      include_same: qs('f-same').value,
+    });
+    if (_corrPct !== null && _corrPct !== undefined) params.corr_pct = _corrPct;
+    window.location.href = url('/api/pdf', params);
+  };
+
+})();
+</script>
+</body>
+</html>
