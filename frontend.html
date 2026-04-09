@@ -116,6 +116,9 @@
       margin: 0 0 8px; font-size: 11px; font-weight: 700; color: #0047ff;
       text-transform: uppercase; letter-spacing: 0.5px;
     }
+    .el-legend-cols {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
+    }
     .el-legend-section { margin-bottom: 8px; }
     .el-legend-section strong {
       display: block; font-size: 10px; text-transform: uppercase;
@@ -293,6 +296,7 @@
         <!-- Metrics glossary — fills the empty bottom-right cell -->
         <div class="el-legend">
           <h4>Glossary</h4>
+          <div class="el-legend-cols">
 
           <div class="el-legend-section">
             <strong>Basics (per game)</strong>
@@ -368,6 +372,8 @@
               <dt>Percentile</dt><dd>Position vs all EuroLeague players this season</dd>
             </dl>
           </div>
+
+          </div><!-- /el-legend-cols -->
         </div>
 
       </div>
