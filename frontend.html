@@ -452,7 +452,8 @@
       // fetch correlation from a wide similarity call
       var p = Object.assign({}, _filters, { player: _player, k: 50, include_same: 'true' });
       loadCharts(_player, player, null);
-      fetch(url('/api/similar', p))
+      // Use no filters + high k so the target player is always found
+      fetch(url('/api/similar', { player: _player, k: 300, include_same: 'true' }))
         .then(function(r){ return r.json(); })
         .then(function(d){
           var f = (d.similar||[]).find(function(r){ return r.player === player; });
