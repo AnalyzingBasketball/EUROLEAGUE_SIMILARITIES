@@ -223,7 +223,8 @@
 
   <!-- Charts card -->
   <div id="card-charts" class="el-card el-hidden">
-    <h3 id="charts-title" style="text-align:center">Head-to-Head Charts</h3>
+    <h3 id="charts-title" style="text-align:center;margin-bottom:4px">Head-to-Head Charts</h3>
+    <p id="charts-subtitle" style="text-align:center;margin:0 0 16px;font-size:15px;font-weight:700;color:#0047ff;letter-spacing:0.5px"></p>
     <div id="charts-loading" class="el-loading">Generating charts…</div>
 
     <div id="charts-content" class="el-hidden">
@@ -470,8 +471,8 @@
     qs('charts-loading').classList.remove('el-hidden');
     qs('charts-content').classList.add('el-hidden');
 
-    var suffix = corrPct !== null && corrPct !== undefined ? ' — ' + corrPct.toFixed(1) + '% match' : '';
-    qs('charts-title').textContent = p1 + ' vs ' + p2 + suffix;
+    qs('charts-title').textContent = p1 + ' vs ' + p2;
+    qs('charts-subtitle').textContent = (corrPct !== null && corrPct !== undefined) ? corrPct.toFixed(1) + '% match' : '';
 
     fetch(url('/api/charts', { p1: p1, p2: p2 }))
       .then(function(r) {
