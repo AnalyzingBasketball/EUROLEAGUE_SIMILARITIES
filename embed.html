@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ffffff; overflow: hidden; }
+    iframe {
+      display: block;
+      width: 100%;
+      border: none;
+      height: 600px; /* initial height before first message */
+      transition: height 0.15s ease;
+    }
+  </style>
+</head>
+<body>
+  <iframe
+    id="app"
+    src="https://analyzingbasketball-euroleague-similarities.hf.space"
+    allow="fullscreen"
+    scrolling="no">
+  </iframe>
+  <script>
+    var iframe = document.getElementById('app');
+
+    // Listen for resize messages from the HuggingFace app
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'resize' && typeof e.data.height === 'number') {
+        var h = Math.ceil(e.data.height) + 2; // +2 for sub-pixel safety
+        iframe.style.height = h + 'px';
+        document.body.style.height = h + 'px';
+        document.documentElement.style.height = h + 'px';
+        // Forward to Google Sites (no-op if blocked, harmless)
+        try { window.parent.postMessage({ type: 'resize', height: h }, '*'); } catch(err) {}
+      }
+    });
+  </script>
+</body>
+</html>
