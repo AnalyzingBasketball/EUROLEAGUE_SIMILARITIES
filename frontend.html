@@ -207,6 +207,9 @@
           </div>
         </div>
       </div>
+      <div style="margin-top:16px;">
+        <button class="el-btn el-btn-green el-hidden" id="btn-pdf" onclick="exportPDF()">Export PDF</button>
+      </div>
     </div>
   </div>
 
@@ -245,9 +248,6 @@
         </div>
       </div>
 
-      <div style="margin-top:22px;">
-        <button class="el-btn el-btn-green" id="btn-pdf" onclick="exportPDF()">Export PDF</button>
-      </div>
     </div>
   </div>
 
@@ -401,6 +401,7 @@
   function selectCompare(player, corrPct) {
     _compare = player;
     _corrPct = corrPct;
+    qs('btn-pdf').classList.remove('el-hidden');
 
     // highlight row
     document.querySelectorAll('table.el-table tbody tr').forEach(function(tr) {
@@ -428,7 +429,7 @@
     } else {
       _compare = player;
       _corrPct = null;
-      // clear similar dropdown
+      qs('btn-pdf').classList.remove('el-hidden');
       qs('cmp-similar').value = '';
       // fetch correlation from a wide similarity call
       var p = Object.assign({}, _filters, { player: _player, k: 50, include_same: 'true' });
