@@ -83,17 +83,17 @@
     table.el-table tbody tr:hover td { background: #eef2ff !important; }
 
     /* ── Stats comparison table ── */
-    .el-stats-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+    .el-stats-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 24px; }
     .el-stats-table th {
-      background: #0047ff; color: #fff; padding: 7px 12px;
-      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      background: #0047ff; color: #fff; padding: 6px 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.3px; text-align: center; white-space: nowrap;
     }
-    .el-stats-table th.center, .el-stats-table td.center { text-align: center; }
-    .el-stats-table td { padding: 6px 12px; border-bottom: 1px solid #eee; }
+    .el-stats-table th.player-col { text-align: left; min-width: 140px; }
+    .el-stats-table td { padding: 7px 8px; border-bottom: 1px solid #eee; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .el-stats-table td.player-name { text-align: left; font-weight: 700; font-size: 12px; white-space: nowrap; }
     .el-stats-table tr:nth-child(even) td { background: #f7f9ff; }
-    .el-stats-table td.stat-val { text-align: right; font-variant-numeric: tabular-nums; }
     .el-stats-table td.stat-win { color: #0047ff; font-weight: 700; }
-    .el-stats-table td.stat-label { text-align: center; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
 
     /* ── Charts ── */
     .el-chart-title {
@@ -510,31 +510,34 @@
         if (img) img.src = 'data:image/png;base64,' + charts[key];
       });
 
-      // Render stats comparison table
+      // Render stats comparison table (horizontal: metrics as columns, players as rows)
       var rows = statsData.rows || [];
       var n1 = statsData.p1 || p1; var n2 = statsData.p2 || p2;
-      var th1 = n1.split(' ').pop(); var th2 = n2.split(' ').pop();
+
+      // Header row: player col + one th per metric
       var html = '<table class="el-stats-table"><thead><tr>'
-        + '<th style="text-align:right;width:30%">' + n1 + '</th>'
-        + '<th class="center" style="width:20%">STAT</th>'
-        + '<th style="text-align:left;width:30%">' + n2 + '</th>'
-        + '</tr></thead><tbody>';
-      rows.forEach(function(r) {
-        var v1 = r.p1; var v2 = r.p2; var hib = r.higher_is_better;
-        var w1 = ''; var w2 = '';
-        if (v1 != null && v2 != null) {
-          if (hib  && v1 > v2) { w1 = ' stat-win'; }
-          if (hib  && v2 > v1) { w2 = ' stat-win'; }
-          if (!hib && v1 < v2) { w1 = ' stat-win'; }
-          if (!hib && v2 < v1) { w2 = ' stat-win'; }
-        }
-        var d1 = v1 != null ? v1 : '—'; var d2 = v2 != null ? v2 : '—';
-        html += '<tr>'
-          + '<td class="stat-val' + w1 + '">' + d1 + '</td>'
-          + '<td class="stat-label">' + r.label + '</td>'
-          + '<td class="stat-val' + w2 + '">' + d2 + '</td>'
-          + '</tr>';
+        + '<th class="player-col">Player</th>';
+      rows.forEach(function(r) { html += '<th>' + r.label + '</th>'; });
+      html += '</tr></thead><tbody>';
+
+      // Row for each player
+      [1, 2].forEach(function(idx) {
+        var name = idx === 1 ? n1 : n2;
+        html += '<tr><td class="player-name">' + name + '</td>';
+        rows.forEach(function(r) {
+          var v1 = r.p1; var v2 = r.p2; var hib = r.higher_is_better;
+          var val = idx === 1 ? v1 : v2;
+          var other = idx === 1 ? v2 : v1;
+          var win = '';
+          if (val != null && other != null) {
+            if ( hib && val > other) win = ' stat-win';
+            if (!hib && val < other) win = ' stat-win';
+          }
+          html += '<td class="' + win + '">' + (val != null ? val : '—') + '</td>';
+        });
+        html += '</tr>';
       });
+
       html += '</tbody></table>';
       qs('stats-table-wrap').innerHTML = html;
     })
