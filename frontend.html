@@ -492,6 +492,15 @@
     window.location.href = url('/api/pdf', params);
   };
 
+  // Auto-resize iframe in parent (Google Sites)
+  function notifyHeight() {
+    var h = document.body.scrollHeight;
+    window.parent.postMessage({ type: 'resize', height: h }, '*');
+  }
+  var _resizeObs = new ResizeObserver(function() { notifyHeight(); });
+  _resizeObs.observe(document.body);
+  notifyHeight();
+
 })();
 </script>
 </body>
