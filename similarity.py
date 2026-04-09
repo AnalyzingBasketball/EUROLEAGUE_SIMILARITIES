@@ -578,7 +578,7 @@ def generate_charts(p1, p2):
         labels = [c.upper() for c in radar_cols]
         vals1 += [vals1[0]]; vals2 += [vals2[0]]
         angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist() + [0]
-        fig = plt.figure(figsize=(4.2, 4.2))
+        fig = plt.figure(figsize=(3.5, 3.5))
         ax  = plt.subplot(111, polar=True)
         ax.set_theta_offset(np.pi/2); ax.set_theta_direction(-1)
         ax.set_facecolor("#f4f6fa")
