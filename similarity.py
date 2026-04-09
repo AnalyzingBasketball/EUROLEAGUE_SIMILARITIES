@@ -102,6 +102,7 @@ _CACHE = {
     "df": None, "ts": 0.0,
     "col_player": None, "col_team": None, "col_age": None,
     "col_pos": None, "col_nat": None,
+    "col_height": None, "col_weight": None,
     "stats_cols": [], "rate_cols": [], "per36_cols": [],
     "basic_num_cols": [],
     "team_abbrev": {}, "team_color": {}, "team_color2": {},
@@ -281,12 +282,16 @@ def _fetch_players(season_code=SEASON_CODE, min_games=MIN_GAMES):
         ftp   = ft/fta if (not np.isnan(fta) and fta > 0) else np.nan
         efgp  = (fg_t+0.5*fg3)/fga_t if (not np.isnan(fga_t) and fga_t > 0) else np.nan
         prof  = profiles.get(code, {})
+        _h = prof.get("height_m", np.nan)
+        _h_cm = round(_h * 100) if (not isinstance(_h, float) or not np.isnan(_h)) and _h and _h > 0 else np.nan
         rec = {
             "Player": _fmt_name(pl.get("name", "")),
             "Team":   _clean_team(team.get("name", "")),
             "Age":    _safe_float(pl.get("age")),
             "Nationality": prof.get("nat", np.nan),
             "Pos":    prof.get("pos", np.nan),
+            "Height": _h_cm,
+            "Weight": prof.get("weight_kg", np.nan),
             "G": gp, "MP": _pg(p.get("minutesPlayed")),
             "FG": _pg(fg_t), "FGA": _pg(fga_t), "FG%": fgp,
             "3P": _pg(fg3),  "3PA": _pg(fg3a),  "3P%": fg3p,
@@ -313,8 +318,12 @@ def _process(df_raw):
     col_age    = _find_col(dt, ["Age", "Edad"])
     col_pos    = _find_col(dt, ["Pos", "Position"])
     col_nat    = _find_col(dt, ["Nationality", "Country", "Nat"])
+    col_height = _find_col(dt, ["Height"])
+    col_weight = _find_col(dt, ["Weight"])
 
-    if col_age:  dt[col_age] = pd.to_numeric(dt[col_age], errors="coerce")
+    if col_age:    dt[col_age]    = pd.to_numeric(dt[col_age], errors="coerce")
+    if col_height: dt[col_height] = pd.to_numeric(dt[col_height], errors="coerce")
+    if col_weight: dt[col_weight] = pd.to_numeric(dt[col_weight], errors="coerce")
     if col_pos:
         dt[col_pos] = dt[col_pos].astype(str).str.strip()
         dt.loc[dt[col_pos].isin(["nan","None","NONE","NaN"]), col_pos] = np.nan
@@ -362,7 +371,7 @@ def _process(df_raw):
     dt["Player"] = dt[col_player]
     dt["Team3"]  = dt["Team"].map(lambda t: _CACHE["team_abbrev"].get(t, "UNK"))
 
-    return dt, col_player, col_team, col_age, col_pos, col_nat, stats_cols, rate_cols, per36_cols, basic_num_cols
+    return dt, col_player, col_team, col_age, col_pos, col_nat, col_height, col_weight, stats_cols, rate_cols, per36_cols, basic_num_cols
 
 # ─────────────────────── Public: load_data ────────────────────
 def load_data(force=False):
@@ -376,8 +385,10 @@ def load_data(force=False):
     _CACHE["team_abbrev"] = ab; _CACHE["team_color"] = co; _CACHE["team_color2"] = co2
     dt, *rest = _process(df_raw)
     (_CACHE["col_player"], _CACHE["col_team"], _CACHE["col_age"],
-     _CACHE["col_pos"], _CACHE["col_nat"], _CACHE["stats_cols"],
-     _CACHE["rate_cols"], _CACHE["per36_cols"], _CACHE["basic_num_cols"]) = rest
+     _CACHE["col_pos"], _CACHE["col_nat"],
+     _CACHE["col_height"], _CACHE["col_weight"],
+     _CACHE["stats_cols"], _CACHE["rate_cols"],
+     _CACHE["per36_cols"], _CACHE["basic_num_cols"]) = rest
     _CACHE["df"] = dt
     _CACHE["ts"] = now
     print(f"Loaded {len(dt)} players.")
@@ -387,36 +398,50 @@ def _df():
     return _CACHE["df"]
 
 # ─────────────────────── Public: filter options ───────────────
-def get_filter_options(team="", pos="", nat="", age_min=0, age_max=99):
+def get_filter_options(team="", pos="", nat="", age_min=0, age_max=99,
+                       height_min=0, height_max=999):
     dt = _df()
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
-    teams       = sorted(dt["Team"].dropna().unique().tolist())
-    positions   = _unique_clean(dt[cp]) if cp else []
+    ch = _CACHE["col_height"]
+    teams         = sorted(dt["Team"].dropna().unique().tolist())
+    positions     = _unique_clean(dt[cp]) if cp else []
     nationalities = _unique_clean(dt[cn]) if cn else []
-    age_lo = int(dt[ca].min()) if ca and dt[ca].notna().any() else 16
-    age_hi = int(dt[ca].max()) if ca and dt[ca].notna().any() else 45
-    players = _filtered_players(dt, team, pos, nat, age_min or age_lo, age_max or age_hi)
+    age_lo  = int(dt[ca].min()) if ca and dt[ca].notna().any() else 16
+    age_hi  = int(dt[ca].max()) if ca and dt[ca].notna().any() else 45
+    h_lo    = int(dt[ch].min()) if ch and dt[ch].notna().any() else 170
+    h_hi    = int(dt[ch].max()) if ch and dt[ch].notna().any() else 220
+    players = _filtered_players(dt, team, pos, nat,
+                                age_min or age_lo, age_max or age_hi,
+                                height_min or h_lo, height_max or h_hi)
     return {"teams": teams, "positions": positions, "nationalities": nationalities,
-            "age_min": age_lo, "age_max": age_hi, "players": players}
+            "age_min": age_lo, "age_max": age_hi,
+            "height_min": h_lo, "height_max": h_hi,
+            "players": players}
 
-def _filtered_players(dt, team, pos, nat, age_min, age_max):
+def _filtered_players(dt, team, pos, nat, age_min, age_max, height_min=0, height_max=999):
     mask = pd.Series(True, index=dt.index)
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
+    ch = _CACHE["col_height"]
     if team: mask &= (dt["Team"] == team)
-    if pos and cp: mask &= (dt[cp] == pos)
-    if nat and cn: mask &= (dt[cn] == nat)
-    if ca:
-        mask &= (dt[ca].fillna(0) >= age_min) & (dt[ca].fillna(999) <= age_max)
-    return sorted(dt.loc[mask, "Player"].dropna().unique().tolist())
-
-def _filtered_df_for_pca(dt, pos, nat, age_min, age_max):
-    """PCA uses pos/nat/age filter but NOT team filter (wider population)."""
-    mask = pd.Series(True, index=dt.index)
-    cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
     if pos and cp:  mask &= (dt[cp] == pos)
     if nat and cn:  mask &= (dt[cn] == nat)
     if ca:
         mask &= (dt[ca].fillna(0) >= age_min) & (dt[ca].fillna(999) <= age_max)
+    if ch and height_min > 0:
+        mask &= (dt[ch].fillna(0) >= height_min) & (dt[ch].fillna(999) <= height_max)
+    return sorted(dt.loc[mask, "Player"].dropna().unique().tolist())
+
+def _filtered_df_for_pca(dt, pos, nat, age_min, age_max, height_min=0, height_max=999):
+    """PCA uses pos/nat/age/height filter but NOT team filter (wider population)."""
+    mask = pd.Series(True, index=dt.index)
+    cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
+    ch = _CACHE["col_height"]
+    if pos and cp:  mask &= (dt[cp] == pos)
+    if nat and cn:  mask &= (dt[cn] == nat)
+    if ca:
+        mask &= (dt[ca].fillna(0) >= age_min) & (dt[ca].fillna(999) <= age_max)
+    if ch and height_min > 0:
+        mask &= (dt[ch].fillna(0) >= height_min) & (dt[ch].fillna(999) <= height_max)
     return dt[mask].copy()
 
 # ─────────────────────── PCA similarity ───────────────────────
@@ -440,11 +465,12 @@ def _compute_sim(filtered_df):
 
 # ─────────────────────── Public: compute_similar ──────────────
 def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
-                    k=5, include_same=False):
+                    height_min=0, height_max=999, k=5, include_same=False):
     dt = _df()
     if player not in dt["Player"].values:
         raise ValueError(f"Player '{player}' not found.")
-    d = _filtered_df_for_pca(dt, pos, nat, age_min or 0, age_max or 99)
+    d = _filtered_df_for_pca(dt, pos, nat, age_min or 0, age_max or 99,
+                              height_min or 0, height_max or 999)
     if player not in d["Player"].values:
         extra = dt[dt["Player"] == player]
         d = pd.concat([d, extra], ignore_index=True).drop_duplicates("Player")
@@ -457,6 +483,7 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
     top = s.head(k)
     uniq = dt.drop_duplicates("Player").set_index("Player")
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
+    ch = _CACHE["col_height"]; cw = _CACHE["col_weight"]
     results = []
     for pname, corr in top.items():
         results.append({
@@ -465,6 +492,8 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
             "position": str(uniq.loc[pname, cp]) if (cp and pname in uniq.index) else "",
             "age": float(uniq.loc[pname, ca]) if (ca and pname in uniq.index and pd.notna(uniq.loc[pname, ca])) else None,
             "nationality": str(uniq.loc[pname, cn]) if (cn and pname in uniq.index) else "",
+            "height": int(uniq.loc[pname, ch]) if (ch and pname in uniq.index and pd.notna(uniq.loc[pname, ch])) else None,
+            "weight": int(uniq.loc[pname, cw]) if (cw and pname in uniq.index and pd.notna(uniq.loc[pname, cw])) else None,
             "correlation_pct": float(np.clip(corr, -1, 1)) * 100.0,
         })
     return {"player": player, "similar": results}

@@ -150,6 +150,14 @@
         <input type="number" id="f-age-max" class="el-input" value="45" min="15" max="50" onchange="onFilterChange()">
       </div>
       <div>
+        <label class="el-label" for="f-height-min">Min Height (cm)</label>
+        <input type="number" id="f-height-min" class="el-input" value="170" min="160" max="230" onchange="onFilterChange()">
+      </div>
+      <div>
+        <label class="el-label" for="f-height-max">Max Height (cm)</label>
+        <input type="number" id="f-height-max" class="el-input" value="220" min="160" max="230" onchange="onFilterChange()">
+      </div>
+      <div>
         <label class="el-label" for="f-k">Top K</label>
         <select id="f-k" class="el-select">
           <option value="3">3 players</option>
@@ -294,11 +302,13 @@
 
   function filters() {
     return {
-      team:    qs('f-team').value,
-      pos:     qs('f-pos').value,
-      nat:     qs('f-nat').value,
-      age_min: qs('f-age-min').value,
-      age_max: qs('f-age-max').value
+      team:       qs('f-team').value,
+      pos:        qs('f-pos').value,
+      nat:        qs('f-nat').value,
+      age_min:    qs('f-age-min').value,
+      age_max:    qs('f-age-max').value,
+      height_min: qs('f-height-min').value,
+      height_max: qs('f-height-max').value
     };
   }
 
@@ -309,8 +319,10 @@
         fillSelect('f-team', d.teams, 'All teams');
         fillSelect('f-pos',  d.positions, 'All positions');
         fillSelect('f-nat',  d.nationalities, 'All nationalities');
-        qs('f-age-min').value = d.age_min || 16;
-        qs('f-age-max').value = d.age_max || 45;
+        qs('f-age-min').value    = d.age_min    || 16;
+        qs('f-age-max').value    = d.age_max    || 45;
+        qs('f-height-min').value = d.height_min || 170;
+        qs('f-height-max').value = d.height_max || 220;
         fillSelect('f-player', d.players, null);
       })
       .catch(function(e) {
@@ -371,7 +383,7 @@
     qs('results-title').textContent = 'Top ' + rows.length + ' similar players to ' + data.player;
 
     var html = '<div class="el-table-wrap"><table class="el-table"><thead><tr>'
-      + '<th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Age</th><th>Nat</th><th>% Match</th>'
+      + '<th>#</th><th>Player</th><th>Team</th><th>Pos</th><th>Age</th><th>Nat</th><th>Ht</th><th>Wt</th><th>% Match</th>'
       + '</tr></thead><tbody>';
     rows.forEach(function(r, i) {
       html += '<tr onclick="selectFromTable(' + JSON.stringify(r.player) + ',' + r.correlation_pct.toFixed(4) + ')">'
@@ -381,6 +393,8 @@
         + '<td>' + (r.position||'-') + '</td>'
         + '<td>' + (r.age ? Math.round(r.age) : '-') + '</td>'
         + '<td>' + (r.nationality||'-') + '</td>'
+        + '<td>' + (r.height ? r.height + ' cm' : '-') + '</td>'
+        + '<td>' + (r.weight ? r.weight + ' kg' : '-') + '</td>'
         + '<td>' + r.correlation_pct.toFixed(3) + '%</td>'
         + '</tr>';
     });

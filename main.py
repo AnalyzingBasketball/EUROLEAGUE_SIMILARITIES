@@ -37,12 +37,15 @@ def api_players(
     team: str = Query(default=""),
     pos:  str = Query(default=""),
     nat:  str = Query(default=""),
-    age_min: int = Query(default=0),
-    age_max: int = Query(default=99),
+    age_min:    int = Query(default=0),
+    age_max:    int = Query(default=99),
+    height_min: int = Query(default=0),
+    height_max: int = Query(default=999),
 ):
     sim.load_data()
     return sim.get_filter_options(team=team, pos=pos, nat=nat,
-                                  age_min=age_min, age_max=age_max)
+                                  age_min=age_min, age_max=age_max,
+                                  height_min=height_min, height_max=height_max)
 
 
 @app.get("/api/similar")
@@ -51,16 +54,20 @@ def api_similar(
     team:   str  = Query(default=""),
     pos:    str  = Query(default=""),
     nat:    str  = Query(default=""),
-    age_min: int = Query(default=0),
-    age_max: int = Query(default=99),
-    k:       int = Query(default=5, ge=1, le=20),
+    age_min:    int = Query(default=0),
+    age_max:    int = Query(default=99),
+    height_min: int = Query(default=0),
+    height_max: int = Query(default=999),
+    k:          int = Query(default=5, ge=1, le=20),
     include_same: bool = Query(default=False),
 ):
     sim.load_data()
     try:
         return sim.compute_similar(
             player=player, team=team, pos=pos, nat=nat,
-            age_min=age_min, age_max=age_max, k=k, include_same=include_same,
+            age_min=age_min, age_max=age_max,
+            height_min=height_min, height_max=height_max,
+            k=k, include_same=include_same,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
