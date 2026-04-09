@@ -82,6 +82,19 @@
     table.el-table tbody tr { cursor: pointer; transition: background 0.15s; }
     table.el-table tbody tr:hover td { background: #eef2ff !important; }
 
+    /* ── Stats comparison table ── */
+    .el-stats-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+    .el-stats-table th {
+      background: #0047ff; color: #fff; padding: 7px 12px;
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .el-stats-table th.center, .el-stats-table td.center { text-align: center; }
+    .el-stats-table td { padding: 6px 12px; border-bottom: 1px solid #eee; }
+    .el-stats-table tr:nth-child(even) td { background: #f7f9ff; }
+    .el-stats-table td.stat-val { text-align: right; font-variant-numeric: tabular-nums; }
+    .el-stats-table td.stat-win { color: #0047ff; font-weight: 700; }
+    .el-stats-table td.stat-label { text-align: center; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+
     /* ── Charts ── */
     .el-chart-title {
       font-size: 12px; font-weight: 700; color: #333;
@@ -228,6 +241,9 @@
     <div id="charts-loading" class="el-loading">Generating charts…</div>
 
     <div id="charts-content" class="el-hidden">
+      <!-- Stats comparison table -->
+      <div id="stats-table-wrap" style="overflow-x:auto;margin-bottom:20px"></div>
+
       <!-- Radar full-width -->
       <div class="el-radar-wrap">
         <img id="chart-radar" src="" alt="Radar">
@@ -474,23 +490,57 @@
     qs('charts-title').textContent = p1 + ' vs ' + p2;
     qs('charts-subtitle').textContent = (corrPct !== null && corrPct !== undefined) ? corrPct.toFixed(1) + '% match' : '';
 
-    fetch(url('/api/charts', { p1: p1, p2: p2 }))
-      .then(function(r) {
+    // Load charts and stats table in parallel
+    Promise.all([
+      fetch(url('/api/charts', { p1: p1, p2: p2 })).then(function(r) {
         if (!r.ok) return r.json().then(function(e){ throw new Error(e.detail||'Error'); });
         return r.json();
-      })
-      .then(function(data) {
-        qs('charts-loading').classList.add('el-hidden');
-        qs('charts-content').classList.remove('el-hidden');
-        var charts = data.charts || {};
-        Object.keys(charts).forEach(function(key) {
-          var img = qs('chart-' + key);
-          if (img) img.src = 'data:image/png;base64,' + charts[key];
-        });
-      })
-      .catch(function(e) {
-        qs('charts-loading').innerHTML = '<p class="el-error">Error generating charts: ' + e.message + '</p>';
+      }),
+      fetch(url('/api/stats', { p1: p1, p2: p2 })).then(function(r) { return r.json(); })
+    ])
+    .then(function(results) {
+      var chartsData = results[0]; var statsData = results[1];
+      qs('charts-loading').classList.add('el-hidden');
+      qs('charts-content').classList.remove('el-hidden');
+
+      // Render charts
+      var charts = chartsData.charts || {};
+      Object.keys(charts).forEach(function(key) {
+        var img = qs('chart-' + key);
+        if (img) img.src = 'data:image/png;base64,' + charts[key];
       });
+
+      // Render stats comparison table
+      var rows = statsData.rows || [];
+      var n1 = statsData.p1 || p1; var n2 = statsData.p2 || p2;
+      var th1 = n1.split(' ').pop(); var th2 = n2.split(' ').pop();
+      var html = '<table class="el-stats-table"><thead><tr>'
+        + '<th style="text-align:right;width:30%">' + n1 + '</th>'
+        + '<th class="center" style="width:20%">STAT</th>'
+        + '<th style="text-align:left;width:30%">' + n2 + '</th>'
+        + '</tr></thead><tbody>';
+      rows.forEach(function(r) {
+        var v1 = r.p1; var v2 = r.p2; var hib = r.higher_is_better;
+        var w1 = ''; var w2 = '';
+        if (v1 != null && v2 != null) {
+          if (hib  && v1 > v2) { w1 = ' stat-win'; }
+          if (hib  && v2 > v1) { w2 = ' stat-win'; }
+          if (!hib && v1 < v2) { w1 = ' stat-win'; }
+          if (!hib && v2 < v1) { w2 = ' stat-win'; }
+        }
+        var d1 = v1 != null ? v1 : '—'; var d2 = v2 != null ? v2 : '—';
+        html += '<tr>'
+          + '<td class="stat-val' + w1 + '">' + d1 + '</td>'
+          + '<td class="stat-label">' + r.label + '</td>'
+          + '<td class="stat-val' + w2 + '">' + d2 + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
+      qs('stats-table-wrap').innerHTML = html;
+    })
+    .catch(function(e) {
+      qs('charts-loading').innerHTML = '<p class="el-error">Error generating charts: ' + e.message + '</p>';
+    });
   }
 
   /* ── PDF ────────────────────────────────────────────────── */

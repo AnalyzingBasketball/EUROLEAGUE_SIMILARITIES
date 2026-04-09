@@ -544,12 +544,69 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
             "nationality":     str(uniq.loc[pname, cn]) if (cn and pname in uniq.index) else "",
             "height":          _val(ch, pname, int),
             "weight":          _val(cw, pname, int),
-            "pir":             _val(c_pir, pname),
+            "pir":             round(_val(c_pir, pname) / _val(_find_col(dt,["G"]), pname), 2) if (_val(c_pir, pname) and _val(_find_col(dt,["G"]), pname)) else None,
             "starter_pct":     round(_val(c_gs, pname) * 100) if _val(c_gs, pname) is not None else None,
             "win_pct":         round(_val(c_win, pname) * 100) if _val(c_win, pname) is not None else None,
             "correlation_pct": float(np.clip(corr, -1, 1)) * 100.0,
         })
     return {"player": player, "similar": results}
+
+# ─────────────────────── Public: get_player_stats ────────────
+def get_player_stats(p1, p2):
+    dt = _df()
+    for p in [p1, p2]:
+        if p not in dt["Player"].values:
+            raise ValueError(f"Player '{p}' not found.")
+    uniq = dt.drop_duplicates("Player").set_index("Player")
+
+    def _v(player, col_aliases):
+        c = _find_col(dt, col_aliases)
+        if c and player in uniq.index and pd.notna(uniq.loc[player, c]):
+            return float(uniq.loc[player, c])
+        return None
+
+    def _fmt(v, dec=1):
+        return round(v, dec) if v is not None else None
+
+    def _pct(v):
+        return round(v * 100, 1) if v is not None else None
+
+    def _pir_pg(player):
+        pir = _v(player, ["PIR"]); g = _v(player, ["G"])
+        return round(pir / g, 2) if (pir and g) else None
+
+    rows = [
+        # label, p1_val, p2_val, higher_is_better
+        ("G",       _fmt(_v(p1,["G"]),0),    _fmt(_v(p2,["G"]),0),    True),
+        ("MIN/G",   _fmt(_v(p1,["MP"])),     _fmt(_v(p2,["MP"])),     True),
+        ("PTS",     _fmt(_v(p1,["PTS"])),    _fmt(_v(p2,["PTS"])),    True),
+        ("AST",     _fmt(_v(p1,["AST"])),    _fmt(_v(p2,["AST"])),    True),
+        ("TRB",     _fmt(_v(p1,["TRB"])),    _fmt(_v(p2,["TRB"])),    True),
+        ("ORB",     _fmt(_v(p1,["ORB"])),    _fmt(_v(p2,["ORB"])),    True),
+        ("DRB",     _fmt(_v(p1,["DRB"])),    _fmt(_v(p2,["DRB"])),    True),
+        ("STL",     _fmt(_v(p1,["STL"])),    _fmt(_v(p2,["STL"])),    True),
+        ("BLK",     _fmt(_v(p1,["BLK"])),    _fmt(_v(p2,["BLK"])),    True),
+        ("TOV",     _fmt(_v(p1,["TOV"])),    _fmt(_v(p2,["TOV"])),    False),
+        ("FD",      _fmt(_v(p1,["FD"])),     _fmt(_v(p2,["FD"])),     True),
+        ("FG%",     _pct(_v(p1,["FG%"])),    _pct(_v(p2,["FG%"])),    True),
+        ("3P%",     _pct(_v(p1,["3P%"])),    _pct(_v(p2,["3P%"])),    True),
+        ("2P%",     _pct(_v(p1,["2P%"])),    _pct(_v(p2,["2P%"])),    True),
+        ("FT%",     _pct(_v(p1,["FT%"])),    _pct(_v(p2,["FT%"])),    True),
+        ("eFG%",    _pct(_v(p1,["EFG%","eFG%"])), _pct(_v(p2,["EFG%","eFG%"])), True),
+        ("TS%",     _pct(_v(p1,["TS%"])),    _pct(_v(p2,["TS%"])),    True),
+        ("AST%",    _pct(_v(p1,["AST%"])),   _pct(_v(p2,["AST%"])),   True),
+        ("TOV%",    _pct(_v(p1,["TOV%"])),   _pct(_v(p2,["TOV%"])),   False),
+        ("ORB%",    _pct(_v(p1,["ORB%"])),   _pct(_v(p2,["ORB%"])),   True),
+        ("DRB%",    _pct(_v(p1,["DRB%"])),   _pct(_v(p2,["DRB%"])),   True),
+        ("A/T",     _fmt(_v(p1,["A2T"]),2),  _fmt(_v(p2,["A2T"]),2),  True),
+        ("PIR/G",   _pir_pg(p1),             _pir_pg(p2),             True),
+        ("WIN%",    _pct(_v(p1,["WIN%"])),   _pct(_v(p2,["WIN%"])),   True),
+        ("START%",  _pct(_v(p1,["GS%"])),    _pct(_v(p2,["GS%"])),    True),
+    ]
+    return {
+        "p1": p1, "p2": p2,
+        "rows": [{"label": r[0], "p1": r[1], "p2": r[2], "higher_is_better": r[3]} for r in rows]
+    }
 
 # ─────────────────────── Chart helpers ────────────────────────
 def _fig_b64(fig, dpi=150):

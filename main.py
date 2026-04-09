@@ -75,6 +75,20 @@ def api_similar(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/stats")
+def api_stats(
+    p1: str = Query(...),
+    p2: str = Query(...),
+):
+    sim.load_data()
+    try:
+        return sim.get_player_stats(p1, p2)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/correlation")
 def api_correlation(
     p1: str = Query(...),
