@@ -589,8 +589,9 @@ def generate_charts(p1, p2):
         ax.plot(angles, vals2, linewidth=2.5, color=c2, label=p2)
         ax.fill(angles, vals2, color=c2, alpha=0.25)
         ax.grid(color="gray", linestyle="dotted", alpha=0.5)
-        ax.set_title("Radar — Global percentiles (0–100)", pad=14, fontweight="bold")
-        ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False)
+        ax.set_title("Radar — Global percentiles (0–100)", pad=10, fontweight="bold", fontsize=8)
+        ax.tick_params(labelsize=6)
+        ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False, fontsize=7)
         plt.tight_layout()
         charts["radar"] = _fig_b64(fig)
 
