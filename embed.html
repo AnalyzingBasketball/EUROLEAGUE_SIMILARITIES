@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: #ffffff; overflow: hidden; }
+    html, body { margin: 0; padding: 0; background: #ffffff; }
     iframe {
       display: block;
       width: 100%;
       border: none;
-      height: 600px; /* initial height before first message */
+      height: 600px;
       transition: height 0.15s ease;
     }
   </style>
@@ -19,8 +19,7 @@
   <iframe
     id="app"
     src="https://analyzingbasketball-euroleague-similarities.hf.space"
-    allow="fullscreen"
-    scrolling="no">
+    allow="fullscreen">
   </iframe>
   <script>
     var iframe = document.getElementById('app');
