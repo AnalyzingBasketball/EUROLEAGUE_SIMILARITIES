@@ -296,7 +296,7 @@ def _tbl_similar(rows, fr, fb):
     for i, r in enumerate(rows, 1):
         data.append([str(i), r["player"], r.get("team", ""),
                      f"{r['correlation_pct']:.2f}%"])
-    cw = [14, 100, 140, 48]
+    cw = [13, 90, 135, 46]
     cmds = _base_style(fr, fb) + [
         ("FONTSIZE", (0, 0), (-1, -1), 7.5),
         ("ALIGN",    (0, 0), ( 0, -1), "CENTER"),
@@ -318,10 +318,12 @@ def _tbl_stats(rows, p1, p2, fr, fb):
     for r in rows:
         data.append([r["label"], _f2(r["p1"]), _f2(r["p2"])])
 
-    cw = [72, 190, 190]
+    cw = [68, 185, 185]
     cmds = _base_style(fr, fb) + [
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
-        ("ALIGN",    (1, 0), (-1, -1), "CENTER"),
+        ("FONTSIZE",     (0, 0), (-1, -1), 6.5),
+        ("TOPPADDING",   (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 2.5),
+        ("ALIGN",        (1, 0), (-1, -1), "CENTER"),
     ]
     for i, r in enumerate(rows, 1):
         hib = r.get("higher_is_better")
