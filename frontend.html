@@ -452,16 +452,14 @@
       // fetch correlation from a wide similarity call
       var p = Object.assign({}, _filters, { player: _player, k: 50, include_same: 'true' });
       loadCharts(_player, player, null);
-      // Use no filters + high k so the target player is always found
-      fetch(url('/api/similar', { player: _player, k: 300, include_same: 'true' }))
+      fetch(url('/api/correlation', { p1: _player, p2: player }))
         .then(function(r){ return r.json(); })
         .then(function(d){
-          var f = (d.similar||[]).find(function(r){ return r.player === player; });
-          if (f) {
-            _corrPct = f.correlation_pct;
-            var bg = f.correlation_pct >= 80 ? '#1e8c45' : (f.correlation_pct >= 60 ? '#e07b00' : '#c0392b');
-            qs('corr-badge').innerHTML = '<span class="el-badge" style="background:'+bg+'">' + f.correlation_pct.toFixed(1) + '% match</span>';
-            qs('charts-subtitle').textContent = f.correlation_pct.toFixed(1) + '% match';
+          if (d.correlation_pct != null) {
+            _corrPct = d.correlation_pct;
+            var bg = d.correlation_pct >= 80 ? '#1e8c45' : (d.correlation_pct >= 60 ? '#e07b00' : '#c0392b');
+            qs('corr-badge').innerHTML = '<span class="el-badge" style="background:'+bg+'">' + d.correlation_pct.toFixed(1) + '% match</span>';
+            qs('charts-subtitle').textContent = d.correlation_pct.toFixed(1) + '% match';
           }
         });
     }

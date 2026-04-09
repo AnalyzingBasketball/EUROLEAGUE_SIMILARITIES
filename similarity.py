@@ -571,6 +571,18 @@ def _pal(cols, dt):
     uniq = dt.drop_duplicates("Player").set_index("Player")
     return [get_team_color(uniq.loc[c, "Team"] if c in uniq.index else "") for c in cols]
 
+# ─────────────────────── Public: get_correlation ──────────────
+def get_correlation(p1, p2):
+    """Return the PCA cosine similarity (0-100) between two players, no filters."""
+    dt = _df()
+    for p in [p1, p2]:
+        if p not in dt["Player"].values:
+            raise ValueError(f"Player '{p}' not found.")
+    sim = _compute_sim(dt)
+    if p1 in sim.index and p2 in sim.columns:
+        return round(float(np.clip(sim.loc[p1, p2], -1, 1)) * 100.0, 2)
+    return None
+
 # ─────────────────────── Public: generate_charts ──────────────
 def generate_charts(p1, p2):
     dt = _df()

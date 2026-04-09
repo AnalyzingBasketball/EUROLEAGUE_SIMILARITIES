@@ -75,6 +75,21 @@ def api_similar(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/correlation")
+def api_correlation(
+    p1: str = Query(...),
+    p2: str = Query(...),
+):
+    sim.load_data()
+    try:
+        pct = sim.get_correlation(p1, p2)
+        return {"p1": p1, "p2": p2, "correlation_pct": pct}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/charts")
 def api_charts(
     p1: str = Query(...),
