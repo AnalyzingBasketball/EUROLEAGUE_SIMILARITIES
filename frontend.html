@@ -106,6 +106,25 @@
     .el-radar-wrap { width: 340px; margin: 0 auto 20px; }
     .el-radar-wrap img { width: 100%; height: auto; display: block; }
 
+    /* ── Metrics legend ── */
+    .el-legend {
+      border: 1px solid #e0e0e0; border-radius: 6px;
+      padding: 12px 14px; background: #f7f9ff; font-size: 11px; line-height: 1.6;
+      align-self: start;
+    }
+    .el-legend h4 {
+      margin: 0 0 8px; font-size: 11px; font-weight: 700; color: #0047ff;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .el-legend-section { margin-bottom: 8px; }
+    .el-legend-section strong {
+      display: block; font-size: 10px; text-transform: uppercase;
+      color: #666; letter-spacing: 0.4px; margin-bottom: 3px; font-weight: 700;
+    }
+    .el-legend dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 6px; }
+    .el-legend dt { font-weight: 700; color: #0047ff; white-space: nowrap; }
+    .el-legend dd { margin: 0; color: #444; }
+
     /* ── Misc ── */
     .el-badge {
       display: inline-block; padding: 3px 12px; border-radius: 16px;
@@ -270,6 +289,87 @@
           <div class="el-chart-title">Games &amp; Minutes</div>
           <img id="chart-games_minutes" src="" alt="">
         </div>
+
+        <!-- Metrics glossary — fills the empty bottom-right cell -->
+        <div class="el-legend">
+          <h4>Glossary</h4>
+
+          <div class="el-legend-section">
+            <strong>Basics (per game)</strong>
+            <dl>
+              <dt>G</dt>      <dd>Games played</dd>
+              <dt>MIN/G</dt>  <dd>Minutes per game</dd>
+              <dt>PTS</dt>    <dd>Points</dd>
+              <dt>TRB</dt>    <dd>Total rebounds</dd>
+              <dt>ORB</dt>    <dd>Offensive rebounds</dd>
+              <dt>DRB</dt>    <dd>Defensive rebounds</dd>
+              <dt>AST</dt>    <dd>Assists</dd>
+              <dt>STL</dt>    <dd>Steals</dd>
+              <dt>BLK</dt>    <dd>Blocks (shots blocked)</dd>
+              <dt>TOV</dt>    <dd>Turnovers</dd>
+              <dt>FD</dt>     <dd>Fouls drawn</dd>
+              <dt>PF</dt>     <dd>Personal fouls</dd>
+            </dl>
+          </div>
+
+          <div class="el-legend-section">
+            <strong>Shooting</strong>
+            <dl>
+              <dt>FG%</dt>    <dd>Field goal %</dd>
+              <dt>3P%</dt>    <dd>Three-point %</dd>
+              <dt>2P%</dt>    <dd>Two-point %</dd>
+              <dt>FT%</dt>    <dd>Free throw %</dd>
+              <dt>eFG%</dt>   <dd>Effective FG% (weights 3P)</dd>
+              <dt>TS%</dt>    <dd>True shooting % (pts / 2·(FGA+0.44·FTA))</dd>
+            </dl>
+          </div>
+
+          <div class="el-legend-section">
+            <strong>Ratios &amp; Advanced</strong>
+            <dl>
+              <dt>3PAr</dt>   <dd>3PA ÷ FGA — reliance on 3s</dd>
+              <dt>FTr</dt>    <dd>FTA ÷ FGA — foul-drawing rate</dd>
+              <dt>3PAR</dt>   <dd>Same as 3PAr (chart label)</dd>
+              <dt>FTR</dt>    <dd>Same as FTr (chart label)</dd>
+              <dt>TOV%</dt>   <dd>Turnovers per shooting attempt</dd>
+              <dt>A/T</dt>    <dd>Assists ÷ Turnovers</dd>
+              <dt>STL/TOV</dt><dd>Steals ÷ Turnovers</dd>
+            </dl>
+          </div>
+
+          <div class="el-legend-section">
+            <strong>Per 36 minutes</strong>
+            <dl>
+              <dt>PT_P36</dt> <dd>Points per 36 min</dd>
+              <dt>AS_P36</dt> <dd>Assists per 36 min</dd>
+              <dt>TR_P36</dt> <dd>Rebounds per 36 min</dd>
+              <dt>ST_P36</dt> <dd>Steals per 36 min</dd>
+              <dt>BL_P36</dt> <dd>Blocks per 36 min</dd>
+              <dt>BK_P36</dt> <dd>Blocks against per 36 min</dd>
+              <dt>TO_P36</dt> <dd>Turnovers per 36 min</dd>
+              <dt>3_P36</dt>  <dd>3-pointers made per 36 min</dd>
+              <dt>FT_P36</dt> <dd>FT attempted per 36 min</dd>
+              <dt>F_P36</dt>  <dd>Fouls drawn per 36 min</dd>
+            </dl>
+          </div>
+
+          <div class="el-legend-section">
+            <strong>Context</strong>
+            <dl>
+              <dt>PIR/G</dt>  <dd>Performance Index Rating per game</dd>
+              <dt>WIN%</dt>   <dd>Team win % in played games</dd>
+              <dt>START%</dt> <dd>% of games started</dd>
+            </dl>
+          </div>
+
+          <div class="el-legend-section" style="margin-bottom:0">
+            <strong>Radar (0–100)</strong>
+            <dl>
+              <dt>Percentile</dt><dd>Position vs all EuroLeague players this season</dd>
+            </dl>
+          </div>
+        </div>
+
       </div>
 
     </div>
