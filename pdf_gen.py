@@ -536,7 +536,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             s = pair[[c]].T; s.index = [c.upper()]
             s.plot(kind="bar", ax=axes[i], color=pal, legend=False)
             axes[i].set_title(c.upper(), fontsize=8)
-            axes[i].set_ylim(0, s.values.max() * 1.2 if s.size else 1)
+            _v = pd.to_numeric(s.values.ravel(), errors="coerce")
+            _mx = np.nanmax(_v) if not np.all(np.isnan(_v)) else 1
+            axes[i].set_ylim(0, _mx * 1.2)
             axes[i].tick_params(axis="x", labelbottom=False)
         axes[-1].legend([p1, p2], fontsize=7, loc="upper right")
         plt.suptitle("Games & Minutes", fontsize=8, y=1.02)
@@ -579,7 +581,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         fig, ax = plt.subplots(figsize=(11.5, 3.0))
         sub = pair[vol_cols].T; sub.index = [c.upper() for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
-        ax.set_ylim(0, sub.values.max() * 1.15 if sub.size else 1)
+        _v = pd.to_numeric(sub.values.ravel(), errors="coerce")
+        _mx = np.nanmax(_v) if not np.all(np.isnan(_v)) else 1
+        ax.set_ylim(0, _mx * 1.15)
         ax.legend([p1, p2], fontsize=8, loc="upper right")
         plt.xticks(rotation=0, fontsize=8.5); plt.tight_layout()
         elems.append(_fig2img(fig, W * 0.98, H * 0.38))
@@ -611,7 +615,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         sub = pair[p36c].T
         sub.index = [c[:-7].upper() + "_P36" for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
-        ax.set_ylim(0, sub.values.max() * 1.15 if sub.size else 1)
+        _v = pd.to_numeric(sub.values.ravel(), errors="coerce")
+        _mx = np.nanmax(_v) if not np.all(np.isnan(_v)) else 1
+        ax.set_ylim(0, _mx * 1.15)
         ax.set_title("Per 36 minutes", pad=5, fontsize=8)
         ax.legend([p1, p2], fontsize=7, loc="upper right")
         plt.xticks(rotation=45, ha="right", fontsize=7.5); plt.tight_layout()
