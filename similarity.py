@@ -628,8 +628,11 @@ def _pct_vec(row, population):
     out = []
     for c in row.index:
         col_pop = population[c].dropna().values
-        if len(col_pop) == 0 or pd.isna(row[c]): out.append(np.nan)
-        else: out.append((np.sum(col_pop <= row[c]) / len(col_pop)) * 100.0)
+        val = pd.to_numeric(row[c], errors='coerce')
+        if len(col_pop) == 0 or pd.isna(val):
+            out.append(np.nan)
+        else:
+            out.append((np.sum(col_pop <= val) / len(col_pop)) * 100.0)
     return pd.Series(out, index=row.index)
 
 def _pal(cols, dt):
