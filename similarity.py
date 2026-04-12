@@ -675,7 +675,9 @@ def generate_charts(p1, p2):
         fig, ax = plt.subplots(figsize=(7, 3.5))
         sub = pair[gm_cols].T; sub.index = [c.upper() for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
-        ax.set_title("Games & Minutes", pad=8); ax.set_ylim(0, sub.values.max()*1.15 if sub.size else 1)
+        _v = pd.to_numeric(sub.values.ravel(), errors="coerce")
+        _mx = float(np.nanmax(_v)) if sub.size and not np.all(np.isnan(_v)) else 1
+        ax.set_title("Games & Minutes", pad=8); ax.set_ylim(0, _mx * 1.15)
         ax.legend([p1, p2], loc="upper right"); plt.xticks(rotation=0); plt.tight_layout()
         charts["games_minutes"] = _fig_b64(fig)
 
@@ -698,7 +700,9 @@ def generate_charts(p1, p2):
         fig, ax = plt.subplots(figsize=(9.5, 4))
         sub = pair[vol_cols].T; sub.index = [c.upper() for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
-        ax.set_ylim(0, sub.values.max()*1.15 if sub.size else 1)
+        _v = pd.to_numeric(sub.values.ravel(), errors="coerce")
+        _mx = float(np.nanmax(_v)) if sub.size and not np.all(np.isnan(_v)) else 1
+        ax.set_ylim(0, _mx * 1.15)
         ax.set_title("Basic — Per-game volumes", pad=8)
         ax.legend([p1, p2], loc="upper right"); plt.xticks(rotation=45, ha="right"); plt.tight_layout()
         charts["volumes"] = _fig_b64(fig)
@@ -721,7 +725,9 @@ def generate_charts(p1, p2):
         sub = pair[p36_cols].T
         sub.index = [c[:-7].upper()+"_P36" for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
-        ax.set_ylim(0, sub.values.max()*1.15 if sub.size else 1)
+        _v = pd.to_numeric(sub.values.ravel(), errors="coerce")
+        _mx = float(np.nanmax(_v)) if sub.size and not np.all(np.isnan(_v)) else 1
+        ax.set_ylim(0, _mx * 1.15)
         ax.set_title("Advanced — Per 36 minutes", pad=8)
         ax.legend([p1, p2], loc="upper right"); plt.xticks(rotation=45, ha="right"); plt.tight_layout()
         charts["per36"] = _fig_b64(fig)
