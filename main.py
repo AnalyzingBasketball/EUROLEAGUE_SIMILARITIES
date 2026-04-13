@@ -156,6 +156,14 @@ def api_pdf(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/shotchart")
+def api_shotchart(player: str = Query(...)):
+    try:
+        return sim.get_player_shots(player)
+    except Exception as e:
+        return JSONResponse(content={"shots": [], "total_shots": 0, "made": 0, "missed": 0, "fg_pct": 0.0})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
