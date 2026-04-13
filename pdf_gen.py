@@ -272,12 +272,12 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
 
     # Columnas de texto con ancho fijo
     FIXED_W = {
-        "player":          68,
-        "similar player":  80,
-        "team":            30,
-        "team3":           30,
-        "full team name": 160,
-        "% match":         40,
+        "player":         68,
+        "similar player": 110,
+        "team":            32,   # Team3 abbreviation en tablas de stats
+        "club":           200,   # nombre completo en tabla top-K
+        "team3":           32,
+        "% match":         52,
         "role":            44,
         "pos":             16,
     }
@@ -366,7 +366,7 @@ def _drop_empty_cols(df):
 def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
                  age_min=0, age_max=99, corr_pct=None):
     from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, KeepTogether
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
 
@@ -429,10 +429,8 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
 
     df_top = pd.DataFrame([{
         "Similar Player": r["player"],
-        "Team": (uniq.loc[r["player"], "Team3"]
-                 if r["player"] in uniq.index else r["team"][:14]),
-        "Full Team Name": r["team"],
-        "% Match": f"{r['correlation_pct']:.2f}%"
+        "Club":           r["team"],
+        "% Match":        f"{r['correlation_pct']:.2f}%"
     } for r in top_rows])
     if not df_top.empty:
         elems.append(Paragraph("<b>Top similar players</b>", styles["CH3"]))
@@ -494,8 +492,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             plt.sca(axes[i]); plt.xticks([])
         axes[-1].legend([p1, p2], loc="upper right")
         plt.tight_layout()
-        elems.append(Paragraph("<b>Games & Minutes</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.38))
+        elems.append(KeepTogether([
+            Paragraph("<b>Games & Minutes</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.38),
+        ]))
 
     pct_cols = [c for c in sim._present(dt, ["FG%", "3P%", "2P%", "EFG%", "FT%", "TS%"])
                 if c in pair.columns]
@@ -505,8 +505,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         sub.index = [c.upper() for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
         ax.set_ylim(0, 1.0); ax.legend([p1, p2]); plt.xticks(rotation=0); plt.tight_layout()
-        elems.append(Paragraph("<b>Basic — Percentages</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.44))
+        elems.append(KeepTogether([
+            Paragraph("<b>Basic — Percentages</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.44),
+        ]))
     elems.append(PageBreak())
 
     # ═══ PAGE 3: H2H tables + Per-game volumes ═══
@@ -555,8 +557,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         sub.plot(kind="bar", ax=ax, color=pal)
         ax.set_ylim(0, _safe_max(sub.values) * 1.15)
         ax.legend([p1, p2]); plt.xticks(rotation=45, ha="right"); plt.tight_layout()
-        elems.append(Paragraph("<b>Basic — Per-game volumes</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.50))
+        elems.append(KeepTogether([
+            Paragraph("<b>Basic — Per-game volumes</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.50),
+        ]))
     elems.append(PageBreak())
 
     # ═══ PAGE 4: Ratios + Per-36 ═══
@@ -567,8 +571,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         sub.index = [c.upper() for c in sub.index]
         sub.plot(kind="bar", ax=ax, color=pal)
         ax.set_ylim(0, 1.0); ax.legend([p1, p2]); plt.xticks(rotation=0); plt.tight_layout()
-        elems.append(Paragraph("<b>Advanced — Ratios</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.42))
+        elems.append(KeepTogether([
+            Paragraph("<b>Advanced — Ratios</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.42),
+        ]))
 
     p36c = [c for c in per36_cols if c in pair.columns]
     if p36c:
@@ -578,8 +584,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         sub.plot(kind="bar", ax=ax, color=pal)
         ax.set_ylim(0, _safe_max(sub.values) * 1.15)
         ax.legend([p1, p2]); plt.xticks(rotation=45, ha="right"); plt.tight_layout()
-        elems.append(Paragraph("<b>Advanced — Per 36 minutes</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.42))
+        elems.append(KeepTogether([
+            Paragraph("<b>Advanced — Per 36 minutes</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.42),
+        ]))
     elems.append(PageBreak())
 
     # ═══ PAGE 5: Radar ═══
@@ -608,8 +616,10 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
         fig.legend(handles=[l1, l2], loc="lower center", bbox_to_anchor=(0.5, -0.01),
                    ncol=2, frameon=False)
         plt.tight_layout()
-        elems.append(Paragraph("<b>Radar — Global percentiles (0–100)</b>", styles["CH3"]))
-        elems.append(_fig_image(fig, doc, max_h_ratio=0.70))
+        elems.append(KeepTogether([
+            Paragraph("<b>Radar — Global percentiles (0–100)</b>", styles["CH3"]),
+            _fig_image(fig, doc, max_h_ratio=0.70),
+        ]))
 
     doc.build(elems, onFirstPage=on_page, onLaterPages=on_page)
     return buf.getvalue()
