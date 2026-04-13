@@ -173,23 +173,21 @@ def _make_page_decorator(fr, fb):
         try:
             el = _el_logo_buf(); el.seek(0)
             ir = ImageReader(el); iw, ih = ir.getSize()
-            inner_h = HDR_H - 2 * PAD
-            # Escalar manteniendo aspect ratio, limitando por altura
-            scale = inner_h / ih
-            img_w = iw * scale; img_h = ih * scale
-            # Si es demasiado ancho, recortar por ancho (máx 120pts)
-            if img_w > 120:
-                scale = 120 / iw
-                img_w = iw * scale; img_h = ih * scale
-            img_x = PW - PAD - 6 - img_w
-            img_y = PH - HDR_H + (HDR_H - img_h) / 2
-            # Fondo blanco redondeado (igual que AB)
+            # Ajustar a la altura disponible de la franja
+            target_h = HDR_H - 6   # casi toda la franja
+            scale    = target_h / ih
+            img_w    = iw * scale
+            img_h    = ih * scale
+            img_x    = PW - PAD - 6 - img_w
+            img_y    = PH - HDR_H + (HDR_H - img_h) / 2
+            # Fondo blanco redondeado
             canvas.setFillColor(WHITE)
             canvas.roundRect(img_x - 4, img_y - 3,
                              img_w + 8, img_h + 6, 5, fill=1, stroke=0)
+            # Sin mask="auto" — la píldora blanca ya hace de fondo
             canvas.drawImage(ir, img_x, img_y,
-                             width=img_w, height=img_h, mask="auto")
-        except Exception:
+                             width=img_w, height=img_h)
+        except Exception as _e:
             canvas.setFont(fb, 9)
             canvas.setFillColor(WHITE)
             canvas.drawRightString(PW - PAD - 6, PH - HDR_H / 2 - 4, "EuroLeague")
