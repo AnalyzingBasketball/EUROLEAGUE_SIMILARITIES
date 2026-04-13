@@ -18,46 +18,41 @@ _LOGO_CACHE: dict = {}
 
 # ── Logo helpers ──────────────────────────────────────────────────
 
-def _el_logo_buf():
-    if "el" in _LOGO_CACHE:
-        return _LOGO_CACHE["el"]
-    # 1) PNG ya convertido por Docker (rsvg-convert en Dockerfile)
-    png_path = os.path.join(_ASSETS, "euroleague_logo.png")
-    if os.path.exists(png_path):
-        with open(png_path, "rb") as f:
+def _load_png(key, filename):
+    """Carga un PNG desde assets/ con caché. Devuelve BytesIO o None."""
+    if key in _LOGO_CACHE:
+        _LOGO_CACHE[key].seek(0)
+        return _LOGO_CACHE[key]
+    path = os.path.join(_ASSETS, filename)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
             data = f.read()
         if data[:8] == b"\x89PNG\r\n\x1a\n":
             buf = io.BytesIO(data)
-            _LOGO_CACHE["el"] = buf
+            _LOGO_CACHE[key] = buf
             return buf
-    # 2) Convertir SVG con cairosvg si está disponible
-    svg_path = os.path.join(_ASSETS, "euroleague_logo.svg")
-    if os.path.exists(svg_path):
-        try:
-            import cairosvg
-            data = cairosvg.svg2png(url=svg_path, output_width=300)
-            buf = io.BytesIO(data)
-            _LOGO_CACHE["el"] = buf
-            return buf
-        except Exception:
-            pass
-    # 3) Descargar PNG desde Wikimedia
-    for url in [
-        "https://upload.wikimedia.org/wikipedia/en/thumb/2/2e/Euroleague_Basketball_logo.svg/200px-Euroleague_Basketball_logo.svg.png",
-        "https://upload.wikimedia.org/wikipedia/en/2/2e/Euroleague_Basketball_logo.svg",
-    ]:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            data = urllib.request.urlopen(req, timeout=8).read()
-            if data[:8] == b"\x89PNG\r\n\x1a\n":
-                buf = io.BytesIO(data)
-                _LOGO_CACHE["el"] = buf
-                return buf
-        except Exception:
-            pass
-    # 4) Badge generado con matplotlib como último recurso
+    return None
+
+
+def _el_logo_buf():
+    # 1) PNG incluido en el repo (assets/euroleague_logo.png)
+    buf = _load_png("el", "euroleague_logo.png")
+    if buf:
+        return buf
+    # 2) Fallback: badge matplotlib
     buf = _gen_el_badge()
     _LOGO_CACHE["el"] = buf
+    return buf
+
+
+def _ab_logo_buf():
+    # 1) PNG incluido en el repo (assets/ab_logo.png)
+    buf = _load_png("ab", "ab_logo.png")
+    if buf:
+        return buf
+    # 2) Fallback: badge matplotlib
+    buf = _gen_ab_badge()
+    _LOGO_CACHE["ab"] = buf
     return buf
 
 
@@ -154,16 +149,16 @@ def _make_page_decorator(fr, fb):
         canvas.setFillColor(BLUE)
         canvas.rect(0, PH - HDR_H, PW, HDR_H, fill=1, stroke=0)
 
-        # Logo AB — píldora blanca + imagen sobre fondo azul
+        # Logo AB — píldora blanca + logo real
         try:
-            ab = _gen_ab_badge(); ab.seek(0)
+            ab = _ab_logo_buf(); ab.seek(0)
             ir = ImageReader(ab); iw, ih = ir.getSize()
             inner_h = HDR_H - 2 * PAD
-            scale = min(inner_h * 3.6 / iw, inner_h / ih)
+            scale = min(inner_h * 4.0 / iw, inner_h / ih)
             img_w = iw * scale; img_h = ih * scale
             img_x = PAD + 6
             img_y = PH - HDR_H + (HDR_H - img_h) / 2
-            # Fondo blanco redondeado detrás del logo
+            # Fondo blanco redondeado
             canvas.setFillColor(WHITE)
             canvas.roundRect(img_x - 4, img_y - 3,
                              img_w + 8, img_h + 6, 5, fill=1, stroke=0)
@@ -174,7 +169,7 @@ def _make_page_decorator(fr, fb):
             canvas.setFillColor(WHITE)
             canvas.drawString(PAD + 4, PH - HDR_H / 2 - 4, "Analyzing Basketball")
 
-        # Logo EuroLeague — esquina superior derecha
+        # Logo EuroLeague — esquina superior derecha (logo real PNG)
         try:
             el = _el_logo_buf(); el.seek(0)
             ir = ImageReader(el); iw, ih = ir.getSize()
