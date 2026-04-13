@@ -37,15 +37,17 @@ def api_players(
     team: str = Query(default=""),
     pos:  str = Query(default=""),
     nat:  str = Query(default=""),
-    age_min:    int = Query(default=0),
-    age_max:    int = Query(default=99),
-    height_min: int = Query(default=0),
-    height_max: int = Query(default=999),
+    age_min:    int   = Query(default=0),
+    age_max:    int   = Query(default=99),
+    height_min: int   = Query(default=0),
+    height_max: int   = Query(default=999),
+    mp_min:     float = Query(default=0),
 ):
     sim.load_data()
     return sim.get_filter_options(team=team, pos=pos, nat=nat,
                                   age_min=age_min, age_max=age_max,
-                                  height_min=height_min, height_max=height_max)
+                                  height_min=height_min, height_max=height_max,
+                                  mp_min=mp_min)
 
 
 @app.get("/api/similar")
@@ -54,11 +56,12 @@ def api_similar(
     team:   str  = Query(default=""),
     pos:    str  = Query(default=""),
     nat:    str  = Query(default=""),
-    age_min:    int = Query(default=0),
-    age_max:    int = Query(default=99),
-    height_min: int = Query(default=0),
-    height_max: int = Query(default=999),
-    k:          int = Query(default=5, ge=1, le=20),
+    age_min:    int   = Query(default=0),
+    age_max:    int   = Query(default=99),
+    height_min: int   = Query(default=0),
+    height_max: int   = Query(default=999),
+    mp_min:     float = Query(default=0),
+    k:          int   = Query(default=5, ge=1, le=20),
     include_same: bool = Query(default=False),
 ):
     sim.load_data()
@@ -67,7 +70,7 @@ def api_similar(
             player=player, team=team, pos=pos, nat=nat,
             age_min=age_min, age_max=age_max,
             height_min=height_min, height_max=height_max,
-            k=k, include_same=include_same,
+            mp_min=mp_min, k=k, include_same=include_same,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -124,11 +127,12 @@ def api_pdf(
     p2: str   = Query(...),
     k:  int   = Query(default=5),
     include_same: bool  = Query(default=False),
-    team:     str = Query(default=""),
-    pos:      str = Query(default=""),
-    nat:      str = Query(default=""),
-    age_min:  int = Query(default=0),
-    age_max:  int = Query(default=99),
+    team:     str   = Query(default=""),
+    pos:      str   = Query(default=""),
+    nat:      str   = Query(default=""),
+    age_min:  int   = Query(default=0),
+    age_max:  int   = Query(default=99),
+    mp_min:   float = Query(default=0),
     corr_pct: float = Query(default=None),
 ):
     sim.load_data()
@@ -136,7 +140,8 @@ def api_pdf(
         pdf_bytes = pdf_gen.generate_pdf(
             p1=p1, p2=p2, k=k, include_same=include_same,
             team=team, pos=pos, nat=nat,
-            age_min=age_min, age_max=age_max, corr_pct=corr_pct,
+            age_min=age_min, age_max=age_max,
+            mp_min=mp_min, corr_pct=corr_pct,
         )
         p1s = p1.replace(" ", "_"); p2s = p2.replace(" ", "_")
         filename = f"Comparison_{p1s}_vs_{p2s}.pdf"

@@ -272,8 +272,8 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
 
     # Columnas de texto con ancho fijo
     FIXED_W = {
-        "player":         68,
-        "similar player": 110,
+        "player":         80,
+        "similar player": 130,
         "team":            32,   # Team3 abbreviation en tablas de stats
         "club":           200,   # nombre completo en tabla top-K
         "team3":           32,
@@ -364,7 +364,7 @@ def _drop_empty_cols(df):
 # ── Main entry point ──────────────────────────────────────────────
 
 def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
-                 age_min=0, age_max=99, corr_pct=None):
+                 age_min=0, age_max=99, mp_min=0, corr_pct=None):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, KeepTogether
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -381,7 +381,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     sim_result = sim.compute_similar(
         player=p1, team=team, pos=pos, nat=nat,
         age_min=age_min or 0, age_max=age_max or 99,
-        k=k, include_same=include_same
+        mp_min=mp_min or 0, k=k, include_same=include_same
     )
     top_rows = sim_result["similar"]
 

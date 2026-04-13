@@ -439,10 +439,11 @@ def _df():
 
 # ─────────────────────── Public: filter options ───────────────
 def get_filter_options(team="", pos="", nat="", age_min=0, age_max=99,
-                       height_min=0, height_max=999):
+                       height_min=0, height_max=999, mp_min=0):
     dt = _df()
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
     ch = _CACHE["col_height"]
+    cm = _find_col(dt, ["MP", "Minutes"])
     teams         = sorted(dt["Team"].dropna().unique().tolist())
     positions     = _unique_clean(dt[cp]) if cp else []
     nationalities = _unique_clean(dt[cn]) if cn else []
@@ -450,18 +451,25 @@ def get_filter_options(team="", pos="", nat="", age_min=0, age_max=99,
     age_hi  = int(dt[ca].max()) if ca and dt[ca].notna().any() else 45
     h_lo    = int(dt[ch].min()) if ch and dt[ch].notna().any() else 170
     h_hi    = int(dt[ch].max()) if ch and dt[ch].notna().any() else 220
+    mp_vals = pd.to_numeric(dt[cm], errors="coerce") if cm else None
+    mp_lo   = float(mp_vals.min()) if mp_vals is not None and mp_vals.notna().any() else 0
+    mp_hi   = float(mp_vals.max()) if mp_vals is not None and mp_vals.notna().any() else 40
     players = _filtered_players(dt, team, pos, nat,
                                 age_min or age_lo, age_max or age_hi,
-                                height_min or h_lo, height_max or h_hi)
+                                height_min or h_lo, height_max or h_hi,
+                                mp_min=mp_min)
     return {"teams": teams, "positions": positions, "nationalities": nationalities,
             "age_min": age_lo, "age_max": age_hi,
             "height_min": h_lo, "height_max": h_hi,
+            "mp_min": mp_lo, "mp_max": mp_hi,
             "players": players}
 
-def _filtered_players(dt, team, pos, nat, age_min, age_max, height_min=0, height_max=999):
+def _filtered_players(dt, team, pos, nat, age_min, age_max,
+                      height_min=0, height_max=999, mp_min=0):
     mask = pd.Series(True, index=dt.index)
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
     ch = _CACHE["col_height"]
+    cm = _find_col(dt, ["MP", "Minutes"])
     if team: mask &= (dt["Team"] == team)
     if pos and cp:  mask &= (dt[cp] == pos)
     if nat and cn:  mask &= (dt[cn] == nat)
@@ -469,19 +477,25 @@ def _filtered_players(dt, team, pos, nat, age_min, age_max, height_min=0, height
         mask &= (dt[ca].fillna(0) >= age_min) & (dt[ca].fillna(999) <= age_max)
     if ch and height_min > 0:
         mask &= (dt[ch].fillna(0) >= height_min) & (dt[ch].fillna(999) <= height_max)
+    if cm and mp_min > 0:
+        mask &= (pd.to_numeric(dt[cm], errors="coerce").fillna(0) >= mp_min)
     return sorted(dt.loc[mask, "Player"].dropna().unique().tolist())
 
-def _filtered_df_for_pca(dt, pos, nat, age_min, age_max, height_min=0, height_max=999):
-    """PCA uses pos/nat/age/height filter but NOT team filter (wider population)."""
+def _filtered_df_for_pca(dt, pos, nat, age_min, age_max,
+                         height_min=0, height_max=999, mp_min=0):
+    """PCA uses pos/nat/age/height/mp filter but NOT team filter (wider population)."""
     mask = pd.Series(True, index=dt.index)
     cp = _CACHE["col_pos"]; cn = _CACHE["col_nat"]; ca = _CACHE["col_age"]
     ch = _CACHE["col_height"]
+    cm = _find_col(dt, ["MP", "Minutes"])
     if pos and cp:  mask &= (dt[cp] == pos)
     if nat and cn:  mask &= (dt[cn] == nat)
     if ca:
         mask &= (dt[ca].fillna(0) >= age_min) & (dt[ca].fillna(999) <= age_max)
     if ch and height_min > 0:
         mask &= (dt[ch].fillna(0) >= height_min) & (dt[ch].fillna(999) <= height_max)
+    if cm and mp_min > 0:
+        mask &= (pd.to_numeric(dt[cm], errors="coerce").fillna(0) >= mp_min)
     return dt[mask].copy()
 
 # ─────────────────────── PCA similarity ───────────────────────
@@ -505,12 +519,12 @@ def _compute_sim(filtered_df):
 
 # ─────────────────────── Public: compute_similar ──────────────
 def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
-                    height_min=0, height_max=999, k=5, include_same=False):
+                    height_min=0, height_max=999, mp_min=0, k=5, include_same=False):
     dt = _df()
     if player not in dt["Player"].values:
         raise ValueError(f"Player '{player}' not found.")
     d = _filtered_df_for_pca(dt, pos, nat, age_min or 0, age_max or 99,
-                              height_min or 0, height_max or 999)
+                              height_min or 0, height_max or 999, mp_min=mp_min or 0)
     if player not in d["Player"].values:
         extra = dt[dt["Player"] == player]
         d = pd.concat([d, extra], ignore_index=True).drop_duplicates("Player")
