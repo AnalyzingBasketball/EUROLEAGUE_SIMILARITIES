@@ -66,18 +66,21 @@ def _gen_el_badge():
 
 
 def _gen_ab_badge():
+    """Badge con texto blanco para colocar sobre fondo azul (#0047ff)."""
     from matplotlib.patches import Circle
-    fig, ax = plt.subplots(figsize=(2.0, 0.8))
-    ax.set_xlim(0, 2.0); ax.set_ylim(0, 0.8)
+    fig, ax = plt.subplots(figsize=(2.4, 0.72))
+    ax.set_xlim(0, 2.4); ax.set_ylim(0, 0.72)
     ax.set_aspect("equal"); ax.axis("off")
     fig.patch.set_alpha(0)
-    ax.add_patch(Circle((0.4, 0.4), 0.34, color="#e07020", zorder=1))
-    ax.plot([0.4, 0.4], [0.06, 0.74], "k-", lw=0.8, zorder=2)
-    ax.plot([0.06, 0.74], [0.4, 0.4], "k-", lw=0.8, zorder=2)
-    ax.text(0.85, 0.52, "Analyzing Basketball", ha="left", va="center",
-            fontsize=7, fontweight="bold", color="#1a1a2e", fontfamily="sans-serif")
-    ax.text(0.85, 0.24, "analyzingbasketball.com", ha="left", va="center",
-            fontsize=5, color="#555555", fontfamily="sans-serif")
+    # Círculo naranja (icono corporativo)
+    ax.add_patch(Circle((0.36, 0.36), 0.30, color="#ff6b1a", zorder=1))
+    ax.plot([0.36, 0.36], [0.06, 0.66], "w-", lw=1.4, zorder=2)
+    ax.plot([0.06, 0.66], [0.36, 0.36], "w-", lw=1.4, zorder=2)
+    # Texto blanco
+    ax.text(0.76, 0.48, "Analyzing Basketball", ha="left", va="center",
+            fontsize=7.5, fontweight="bold", color="white")
+    ax.text(0.76, 0.20, "analyzingbasketball.com", ha="left", va="center",
+            fontsize=5.0, color="#ccddff")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=180, bbox_inches="tight",
                 facecolor="none", transparent=True)
@@ -93,59 +96,78 @@ def _make_page_decorator(fr, fb):
     from reportlab.lib import colors
     from reportlab.lib.utils import ImageReader
 
-    PW, PH = landscape(A4)
-    LM, HDR_H, FTR_H = 24, 34, 16
+    PW, PH   = landscape(A4)
+    HDR_H    = 46          # altura franja superior
+    FTR_H    = 22          # altura franja inferior
+    PAD      = 5           # padding interior logos
+    BLUE     = colors.HexColor("#0047ff")
+    WHITE    = colors.white
 
     def on_page(canvas, doc):
         canvas.saveState()
-        hdr_y = PH - LM - HDR_H
 
-        # AB logo (left)
+        # ═══ FRANJA SUPERIOR ══════════════════════════════════════
+        canvas.setFillColor(BLUE)
+        canvas.rect(0, PH - HDR_H, PW, HDR_H, fill=1, stroke=0)
+
+        # Logo AB — esquina superior izquierda
         try:
             ab = _gen_ab_badge(); ab.seek(0)
             ir = ImageReader(ab); iw, ih = ir.getSize()
-            scale = min(HDR_H * 2.8 / iw, HDR_H / ih)
-            canvas.drawImage(ir, LM, hdr_y, width=iw * scale, height=ih * scale, mask="auto")
+            inner_h = HDR_H - 2 * PAD
+            scale = min(inner_h * 3.2 / iw, inner_h / ih)
+            img_h = ih * scale
+            canvas.drawImage(ir,
+                             PAD + 4,
+                             PH - HDR_H + (HDR_H - img_h) / 2,
+                             width=iw * scale, height=img_h,
+                             mask="auto")
         except Exception:
-            canvas.setFont(fb, 8)
-            canvas.setFillColor(colors.HexColor("#1a1a2e"))
-            canvas.drawString(LM, hdr_y + HDR_H * 0.3, "Analyzing Basketball")
+            canvas.setFont(fb, 9)
+            canvas.setFillColor(WHITE)
+            canvas.drawString(PAD + 4, PH - HDR_H / 2 - 4, "Analyzing Basketball")
 
-        # EL logo (right)
+        # Logo EuroLeague — esquina superior derecha
         try:
             el = _el_logo_buf(); el.seek(0)
             ir = ImageReader(el); iw, ih = ir.getSize()
-            scale = min(HDR_H * 1.4 / iw, HDR_H / ih)
-            lw = iw * scale
-            canvas.drawImage(ir, PW - LM - lw, hdr_y, width=lw, height=ih * scale, mask="auto")
+            inner_h = HDR_H - 2 * PAD
+            scale = min(inner_h * 1.6 / iw, inner_h / ih)
+            img_w = iw * scale; img_h = ih * scale
+            canvas.drawImage(ir,
+                             PW - PAD - 4 - img_w,
+                             PH - HDR_H + (HDR_H - img_h) / 2,
+                             width=img_w, height=img_h,
+                             mask="auto")
         except Exception:
-            canvas.setFont(fb, 8)
-            canvas.setFillColor(colors.HexColor("#f04e23"))
-            canvas.drawRightString(PW - LM, hdr_y + HDR_H * 0.3, "EuroLeague")
+            canvas.setFont(fb, 9)
+            canvas.setFillColor(WHITE)
+            canvas.drawRightString(PW - PAD - 4, PH - HDR_H / 2 - 4, "EuroLeague")
 
-        # Centre text
+        # Texto central en la franja (blanco)
         canvas.setFont(fb, 9)
-        canvas.setFillColor(colors.HexColor("#1a1a2e"))
-        canvas.drawCentredString(PW / 2, hdr_y + HDR_H * 0.58, "Analyzing Basketball")
-        canvas.setFont(fr, 7)
-        canvas.setFillColor(colors.HexColor("#666666"))
-        canvas.drawCentredString(PW / 2, hdr_y + HDR_H * 0.18, "EuroLeague Stats · 2025/26")
-
-        # Blue rule below header
-        canvas.setStrokeColor(colors.HexColor("#0047ff"))
-        canvas.setLineWidth(1.0)
-        canvas.line(LM, hdr_y - 3, PW - LM, hdr_y - 3)
-
-        # Footer
-        ftr_y = LM
-        canvas.setStrokeColor(colors.HexColor("#cccccc"))
-        canvas.setLineWidth(0.5)
-        canvas.line(LM, ftr_y + FTR_H - 2, PW - LM, ftr_y + FTR_H - 2)
+        canvas.setFillColor(WHITE)
+        canvas.drawCentredString(PW / 2, PH - HDR_H + HDR_H * 0.60,
+                                 "EUROLEAGUE · SIMILARITY EXPLORER")
         canvas.setFont(fr, 6.5)
-        canvas.setFillColor(colors.HexColor("#888888"))
-        canvas.drawString(LM, ftr_y + 3, "analyzingbasketball.com")
-        canvas.drawCentredString(PW / 2, ftr_y + 3, f"Página {doc.page}")
-        canvas.drawRightString(PW - LM, ftr_y + 3, "EuroLeague Basketball · 2025/26")
+        canvas.setFillColor(colors.HexColor("#ccd8ff"))
+        canvas.drawCentredString(PW / 2, PH - HDR_H + HDR_H * 0.28,
+                                 "EuroLeague Stats · 2025/26")
+
+        # ═══ FRANJA INFERIOR ══════════════════════════════════════
+        canvas.setFillColor(BLUE)
+        canvas.rect(0, 0, PW, FTR_H, fill=1, stroke=0)
+
+        canvas.setFont(fr, 6.5)
+        canvas.setFillColor(WHITE)
+        canvas.drawCentredString(
+            PW / 2, FTR_H / 2 - 2,
+            f"© 2026 Analyzing Basketball  |  www.analyzingbasketball.com"
+        )
+        canvas.setFont(fr, 6)
+        canvas.setFillColor(colors.HexColor("#ccd8ff"))
+        canvas.drawRightString(PW - PAD - 4, FTR_H / 2 - 2,
+                               f"Página {doc.page}")
 
         canvas.restoreState()
 
@@ -278,7 +300,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
                             leftMargin=24, rightMargin=24,
-                            topMargin=62, bottomMargin=34)
+                            topMargin=58, bottomMargin=30)
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle("CH3", parent=styles["Heading3"], alignment=TA_CENTER,
                               fontName=FONT_BOLD, fontSize=10))
