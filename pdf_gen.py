@@ -169,22 +169,30 @@ def _make_page_decorator(fr, fb):
             canvas.setFillColor(WHITE)
             canvas.drawString(PAD + 4, PH - HDR_H / 2 - 4, "Analyzing Basketball")
 
-        # Logo EuroLeague — esquina superior derecha (logo real PNG)
+        # Logo EuroLeague — esquina superior derecha con píldora blanca
         try:
             el = _el_logo_buf(); el.seek(0)
             ir = ImageReader(el); iw, ih = ir.getSize()
             inner_h = HDR_H - 2 * PAD
-            scale = min(inner_h * 1.6 / iw, inner_h / ih)
+            # Escalar manteniendo aspect ratio, limitando por altura
+            scale = inner_h / ih
             img_w = iw * scale; img_h = ih * scale
-            canvas.drawImage(ir,
-                             PW - PAD - 4 - img_w,
-                             PH - HDR_H + (HDR_H - img_h) / 2,
-                             width=img_w, height=img_h,
-                             mask="auto")
+            # Si es demasiado ancho, recortar por ancho (máx 120pts)
+            if img_w > 120:
+                scale = 120 / iw
+                img_w = iw * scale; img_h = ih * scale
+            img_x = PW - PAD - 6 - img_w
+            img_y = PH - HDR_H + (HDR_H - img_h) / 2
+            # Fondo blanco redondeado (igual que AB)
+            canvas.setFillColor(WHITE)
+            canvas.roundRect(img_x - 4, img_y - 3,
+                             img_w + 8, img_h + 6, 5, fill=1, stroke=0)
+            canvas.drawImage(ir, img_x, img_y,
+                             width=img_w, height=img_h, mask="auto")
         except Exception:
             canvas.setFont(fb, 9)
             canvas.setFillColor(WHITE)
-            canvas.drawRightString(PW - PAD - 4, PH - HDR_H / 2 - 4, "EuroLeague")
+            canvas.drawRightString(PW - PAD - 6, PH - HDR_H / 2 - 4, "EuroLeague")
 
         # Texto central en la franja (blanco)
         canvas.setFont(fb, 9)
