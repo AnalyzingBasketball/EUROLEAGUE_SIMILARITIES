@@ -832,6 +832,9 @@ def _fetch_all_shots():
             rows = r.json().get("Rows", [])
             for row in rows:
                 pid = str(row.get("ID_PLAYER", "")).strip()
+                # Shot data prefixes codes with "P"; df codes are numeric-only
+                if pid.startswith("P") and len(pid) > 1 and pid[1:].isdigit():
+                    pid = pid[1:]
                 if not pid:
                     continue
                 action = str(row.get("ID_ACTION", "")).strip()
