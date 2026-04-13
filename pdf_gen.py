@@ -350,6 +350,16 @@ def _pct_vec(row, population):
     return pd.Series(out, index=row.index)
 
 
+def _drop_empty_cols(df):
+    """Elimina columnas donde TODOS los valores son cadena vacía o NaN."""
+    keep = []
+    for c in df.columns:
+        col = df[c].replace("", np.nan)
+        if col.notna().any():
+            keep.append(c)
+    return df[keep]
+
+
 # ── Main entry point ──────────────────────────────────────────────
 
 def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
@@ -429,7 +439,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     df_multi["_o"] = df_multi["Player"].map({p: i for i, p in enumerate(roster)})
     df_multi = df_multi.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
     elems.append(Paragraph("<b>Basic stats (group)</b>", styles["CH3"]))
-    elems.append(_make_table(df_multi, FONT_REG, FONT_BOLD, font_size=5,
+    elems.append(_make_table(_drop_empty_cols(df_multi), FONT_REG, FONT_BOLD, font_size=5,
                              doc_width=DOC_W))
     elems.append(PageBreak())   # tabla grande → página propia
 
@@ -446,7 +456,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             if c in d.columns:
                 d[c] = pd.to_numeric(d[c], errors="coerce").map(
                     lambda x: f"{x:.2f}" if pd.notna(x) else "")
-        return d
+        return _drop_empty_cols(d)
 
     if adv_cols_A:
         elems.append(Paragraph("<b>Advanced stats — Rates & Percentages (group)</b>", styles["CH3"]))
@@ -489,7 +499,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     # ═══ PAGE 3: H2H tables + Per-game volumes ═══
     h2h_basic = pair[["Team3"] + basic_cols].rename(columns={"Team3": "Team"}).reset_index()
     elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Basic)</b>", styles["CH3"]))
-    elems.append(_make_table(h2h_basic, FONT_REG, FONT_BOLD, font_size=5,
+    elems.append(_make_table(_drop_empty_cols(h2h_basic), FONT_REG, FONT_BOLD, font_size=5,
                              doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
@@ -500,8 +510,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             if c in h2h_adv_A.columns:
                 h2h_adv_A[c] = pd.to_numeric(h2h_adv_A[c], errors="coerce").map(
                     lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        h2h_adv_A = _drop_empty_cols(h2h_adv_A.reset_index())
         elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Advanced Rates)</b>", styles["CH3"]))
-        elems.append(_make_table(h2h_adv_A.reset_index(), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(_make_table(h2h_adv_A, FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
         elems.append(Spacer(1, 4))
     if adv_cols_B:
         h2h_adv_B = pair[["Team3"] + [c for c in adv_cols_B if c in pair.columns]].copy().rename(columns={"Team3": "Team"})
@@ -509,8 +520,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             if c in h2h_adv_B.columns:
                 h2h_adv_B[c] = pd.to_numeric(h2h_adv_B[c], errors="coerce").map(
                     lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        h2h_adv_B = _drop_empty_cols(h2h_adv_B.reset_index())
         elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Per 36 & Scoring)</b>", styles["CH3"]))
-        elems.append(_make_table(h2h_adv_B.reset_index(), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(_make_table(h2h_adv_B, FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
     vol_targets = ["FG","FGA","3P","3PA","FT","FTA","TRB","AST","STL","BLK","TOV","PF","PTS"]
