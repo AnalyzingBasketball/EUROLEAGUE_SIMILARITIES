@@ -255,9 +255,10 @@ def _safe_max(arr, fallback=1.0):
 
 def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
     """
-    Construye una Table de ReportLab que encaja exactamente en doc_width.
-    Columnas de texto conocidas reciben ancho fijo; el resto se distribuye
-    uniformemente con el espacio sobrante.
+    Construye una Table de ReportLab ajustada a doc_width.
+    - Columnas de texto (Player, Team…) reciben ancho fijo generoso.
+    - El resto se reparte equitativamente en el ancho sobrante.
+    - Si el ancho libre < 12 pts, reduce font_size automáticamente.
     """
     from reportlab.platypus import Table, TableStyle
     from reportlab.lib import colors
@@ -269,19 +270,18 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
         else:
             df_[col] = df_[col].fillna("").astype(str)
 
-    # ── Ancho de columnas ────────────────────────────────────────
-    # Columnas de texto que reconocemos y les damos ancho fijo
+    # Columnas de texto con ancho fijo
     FIXED_W = {
-        "player":         64,
-        "similar player": 80,
-        "team":           30,
+        "player":         62,
+        "similar player": 75,
+        "team":           28,
         "team3":          28,
-        "% match":        38,
-        "role":           46,
-        "pos":            18,
+        "% match":        36,
+        "role":           44,
+        "pos":            16,
     }
     cols = list(df_.columns)
-    n = len(cols)
+    n    = len(cols)
     fixed = {}
     for i, c in enumerate(cols):
         w = FIXED_W.get(str(c).lower().strip())
@@ -290,7 +290,17 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
 
     fixed_total = sum(fixed.values())
     n_free = n - len(fixed)
-    free_w = max(14, (doc_width - fixed_total) / n_free) if n_free > 0 else 20
+
+    if n_free > 0:
+        free_w = (doc_width - fixed_total) / n_free
+        # Si las columnas numéricas son muy estrechas, achica la fuente
+        if free_w < 12 and font_size > 4:
+            font_size = max(4, font_size - 1)
+            free_w = (doc_width - fixed_total) / n_free
+        free_w = max(11, free_w)
+    else:
+        free_w = 20
+
     col_widths = [fixed.get(i, free_w) for i in range(n)]
 
     data = [list(map(str, df_.columns))] + [list(map(str, r)) for _, r in df_.iterrows()]
@@ -299,17 +309,17 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
         ("FONTNAME",       (0, 0), (-1,  0), font_bold),
         ("FONTNAME",       (0, 1), (-1, -1), font_reg),
         ("FONTSIZE",       (0, 0), (-1, -1), font_size),
-        ("LEADING",        (0, 0), (-1, -1), font_size + 2),
+        ("LEADING",        (0, 0), (-1, -1), font_size + 1),
         ("TEXTCOLOR",      (0, 0), (-1,  0), colors.whitesmoke),
         ("BACKGROUND",     (0, 0), (-1,  0), colors.HexColor("#0047ff")),
         ("ALIGN",          (0, 0), (-1, -1), "CENTER"),
-        ("ALIGN",          (0, 1), (1,  -1), "LEFT"),   # Player/Team alineados izq
+        ("ALIGN",          (0, 1), (1,  -1), "LEFT"),
         ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
         ("GRID",           (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1),
          [colors.white, colors.HexColor("#f0f4ff")]),
-        ("TOPPADDING",     (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING",  (0, 0), (-1, -1), 2),
+        ("TOPPADDING",     (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING",  (0, 0), (-1, -1), 1),
         ("LEFTPADDING",    (0, 0), (-1, -1), 2),
         ("RIGHTPADDING",   (0, 0), (-1, -1), 2),
     ]))
@@ -423,17 +433,28 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
                              doc_width=DOC_W))
     elems.append(PageBreak())   # tabla grande → página propia
 
-    df_adv = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + stats_cols]
-              .drop_duplicates("Player"))
-    df_adv["_o"] = df_adv["Player"].map({p: i for i, p in enumerate(roster)})
-    df_adv = df_adv.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
-    for c in rate_cols + per36_cols:
-        if c in df_adv.columns:
-            df_adv[c] = pd.to_numeric(df_adv[c], errors="coerce").map(
-                lambda x: f"{x:.2f}" if pd.notna(x) else "")
-    elems.append(Paragraph("<b>Advanced stats (group)</b>", styles["CH3"]))
-    elems.append(_make_table(df_adv, FONT_REG, FONT_BOLD, font_size=5,
-                             doc_width=DOC_W))
+    # Advanced stats: dividir en dos bloques para que quepan en A4
+    adv_cols_A = [c for c in (rate_cols + sim._present(dt, ["ORB%","DRB%","REB%","AST%","TOV%","A2T","GS%","WIN%"])) if c in dt.columns]
+    adv_cols_B = [c for c in (per36_cols + sim._present(dt, ["PTS_2P%","PTS_3P%","PTS_FT%","2PA_SH","3PA_SH","2PT_R","3PT_R"])) if c in dt.columns]
+
+    def _adv_df(cols_subset):
+        d = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + cols_subset]
+             .drop_duplicates("Player"))
+        d["_o"] = d["Player"].map({p: i for i, p in enumerate(roster)})
+        d = d.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
+        for c in cols_subset:
+            if c in d.columns:
+                d[c] = pd.to_numeric(d[c], errors="coerce").map(
+                    lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        return d
+
+    if adv_cols_A:
+        elems.append(Paragraph("<b>Advanced stats — Rates & Percentages (group)</b>", styles["CH3"]))
+        elems.append(_make_table(_adv_df(adv_cols_A), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(Spacer(1, 6))
+    if adv_cols_B:
+        elems.append(Paragraph("<b>Advanced stats — Per 36 & Scoring (group)</b>", styles["CH3"]))
+        elems.append(_make_table(_adv_df(adv_cols_B), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
     elems.append(PageBreak())
 
     # ═══ PAGE 2: Games+Min chart + Percentages chart ═══
@@ -472,14 +493,24 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
                              doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
-    h2h_adv = pair[["Team3"] + stats_cols].copy().rename(columns={"Team3": "Team"})
-    for c in rate_cols + per36_cols:
-        if c in h2h_adv.columns:
-            h2h_adv[c] = pd.to_numeric(h2h_adv[c], errors="coerce").map(
-                lambda x: f"{x:.2f}" if pd.notna(x) else "")
-    elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Advanced)</b>", styles["CH3"]))
-    elems.append(_make_table(h2h_adv.reset_index(), FONT_REG, FONT_BOLD, font_size=5,
-                             doc_width=DOC_W))
+    # H2H Advanced — dividir igual que el grupo
+    if adv_cols_A:
+        h2h_adv_A = pair[["Team3"] + [c for c in adv_cols_A if c in pair.columns]].copy().rename(columns={"Team3": "Team"})
+        for c in adv_cols_A:
+            if c in h2h_adv_A.columns:
+                h2h_adv_A[c] = pd.to_numeric(h2h_adv_A[c], errors="coerce").map(
+                    lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Advanced Rates)</b>", styles["CH3"]))
+        elems.append(_make_table(h2h_adv_A.reset_index(), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(Spacer(1, 4))
+    if adv_cols_B:
+        h2h_adv_B = pair[["Team3"] + [c for c in adv_cols_B if c in pair.columns]].copy().rename(columns={"Team3": "Team"})
+        for c in adv_cols_B:
+            if c in h2h_adv_B.columns:
+                h2h_adv_B[c] = pd.to_numeric(h2h_adv_B[c], errors="coerce").map(
+                    lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Per 36 & Scoring)</b>", styles["CH3"]))
+        elems.append(_make_table(h2h_adv_B.reset_index(), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
     vol_targets = ["FG","FGA","3P","3PA","FT","FTA","TRB","AST","STL","BLK","TOV","PF","PTS"]
