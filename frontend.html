@@ -194,7 +194,16 @@
       </div>
       <div>
         <label class="el-label" for="f-mp-min">Min Min/Game</label>
-        <input type="number" id="f-mp-min" class="el-input" value="0" min="0" max="40" step="0.5" onchange="onFilterChange()">
+        <select id="f-mp-min" class="el-select" onchange="onFilterChange()">
+          <option value="0">Any minutes</option>
+          <option value="5">≥ 5 min/game</option>
+          <option value="10">≥ 10 min/game</option>
+          <option value="15">≥ 15 min/game</option>
+          <option value="20">≥ 20 min/game</option>
+          <option value="25">≥ 25 min/game</option>
+          <option value="30">≥ 30 min/game</option>
+          <option value="35">≥ 35 min/game</option>
+        </select>
       </div>
       <div>
         <label class="el-label" for="f-k">Top K</label>

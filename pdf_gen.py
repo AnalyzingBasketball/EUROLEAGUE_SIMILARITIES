@@ -275,8 +275,9 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
         "player":         80,
         "similar player": 130,
         "team":            32,   # Team3 abbreviation en tablas de stats
-        "club":           200,   # nombre completo en tabla top-K
+        "club":           190,   # nombre completo en tabla top-K
         "team3":           32,
+        "min/g":           36,   # minutos por partido
         "% match":         52,
         "role":            44,
         "pos":             16,
@@ -430,6 +431,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     df_top = pd.DataFrame([{
         "Similar Player": r["player"],
         "Club":           r["team"],
+        "Min/G":          f"{r['mp']:.1f}" if r.get("mp") is not None else "-",
         "% Match":        f"{r['correlation_pct']:.2f}%"
     } for r in top_rows])
     if not df_top.empty:

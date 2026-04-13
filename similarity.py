@@ -541,6 +541,7 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
     c_pir  = _find_col(dt, ["PIR"])
     c_gs   = _find_col(dt, ["GS%"])
     c_win  = _find_col(dt, ["WIN%"])
+    c_mp   = _find_col(dt, ["MP", "Minutes"])
 
     def _val(col, pname, cast=float):
         if col and pname in uniq.index and pd.notna(uniq.loc[pname, col]):
@@ -561,6 +562,7 @@ def compute_similar(player, team="", pos="", nat="", age_min=0, age_max=99,
             "pir":             round(_val(c_pir, pname) / _val(_find_col(dt,["G"]), pname), 2) if (_val(c_pir, pname) and _val(_find_col(dt,["G"]), pname)) else None,
             "starter_pct":     round(_val(c_gs, pname) * 100) if _val(c_gs, pname) is not None else None,
             "win_pct":         round(_val(c_win, pname) * 100) if _val(c_win, pname) is not None else None,
+            "mp":              round(_val(c_mp, pname), 1) if _val(c_mp, pname) is not None else None,
             "correlation_pct": float(np.clip(corr, -1, 1)) * 100.0,
         })
     return {"player": player, "similar": results}
