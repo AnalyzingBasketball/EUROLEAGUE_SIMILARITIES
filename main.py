@@ -164,6 +164,46 @@ def api_shotchart(player: str = Query(...)):
         return JSONResponse(content={"shots": [], "total_shots": 0, "made": 0, "missed": 0, "fg_pct": 0.0})
 
 
+@app.get("/api/shotdebug")
+def api_shotdebug():
+    """Diagnostic endpoint — remove after debugging."""
+    import requests as _req
+    out = {}
+    # 1. Test Results endpoint for gamecodes
+    try:
+        r = _req.get("https://live.euroleague.net/api/Results",
+                     params={"seasonCode": "E2025"}, timeout=15)
+        out["results_status"] = r.status_code
+        data = r.json()
+        rows = data if isinstance(data, list) else data.get("Rows", data.get("rows", []))
+        out["results_rows_count"] = len(rows)
+        out["results_first_row_keys"] = list(rows[0].keys()) if rows else []
+        out["results_first_row"] = rows[0] if rows else {}
+    except Exception as e:
+        out["results_error"] = str(e)
+    # 2. Test Points endpoint for game 1
+    try:
+        r2 = _req.get("https://live.euroleague.net/api/Points",
+                      params={"gamecode": 1, "seasoncode": "E2025"}, timeout=15)
+        out["points_status"] = r2.status_code
+        data2 = r2.json()
+        rows2 = data2.get("Rows", data2.get("rows", []))
+        out["points_rows_count"] = len(rows2)
+        out["points_first_row_keys"] = list(rows2[0].keys()) if rows2 else []
+        out["points_first_row"] = rows2[0] if rows2 else {}
+    except Exception as e:
+        out["points_error"] = str(e)
+    # 3. Show a few player codes from the main dataframe
+    try:
+        dt = sim._df()
+        code_col = sim._find_col(dt, ["Code", "code"])
+        out["code_col_name"] = code_col
+        out["sample_player_codes"] = dt[[dt.columns[0], code_col]].head(3).values.tolist() if code_col else []
+    except Exception as e:
+        out["df_error"] = str(e)
+    return out
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
