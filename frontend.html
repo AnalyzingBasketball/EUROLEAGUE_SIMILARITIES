@@ -141,6 +141,37 @@
     .el-h2h-row  { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .el-h2h-row > div { flex: 1; min-width: 180px; }
     .el-h2h-row .el-select { margin-bottom: 0; }
+
+    /* ── Shot Charts ── */
+    .el-shotchart-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px;
+    }
+    @media (max-width: 700px) { .el-shotchart-grid { grid-template-columns: 1fr; } }
+    .el-shotchart-player { display: flex; flex-direction: column; align-items: center; }
+    .el-shotchart-player h4 {
+      margin: 0 0 8px; font-size: 13px; font-weight: 700; text-transform: uppercase;
+      color: #333; letter-spacing: 0.4px; text-align: center;
+    }
+    .el-shotchart-player canvas {
+      border: 1px solid #e0e0e0; border-radius: 4px; display: block;
+      max-width: 100%; height: auto;
+    }
+    .el-shotchart-player p {
+      margin: 6px 0 0; font-size: 12px; color: #555; text-align: center;
+    }
+    .el-shotchart-legend {
+      display: flex; justify-content: center; gap: 20px;
+      margin-top: 12px; font-size: 12px; color: #444;
+    }
+    .el-shotchart-legend span { display: flex; align-items: center; gap: 5px; }
+    .el-shotchart-legend .dot-made {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(40, 180, 80, 0.85); display: inline-block;
+    }
+    .el-shotchart-legend .dot-miss {
+      width: 10px; height: 10px; background: rgba(210, 50, 50, 0.7);
+      display: inline-block; position: relative;
+    }
   </style>
 </head>
 <body>
@@ -391,6 +422,31 @@
 
       </div>
 
+    </div>
+  </div>
+
+  <!-- Shot Charts card -->
+  <div id="card-shotchart" class="el-card el-hidden">
+    <h3 id="shotchart-title" style="text-align:center;margin-bottom:4px">Shot Charts</h3>
+    <p id="shotchart-subtitle" style="text-align:center;margin:0 0 16px;font-size:13px;color:#555">Field goal attempts this season</p>
+    <div id="shotchart-loading" class="el-loading">Loading shot data…</div>
+    <div id="shotchart-content" class="el-hidden">
+      <div class="el-shotchart-grid">
+        <div class="el-shotchart-player">
+          <h4 id="shotchart-name-1"></h4>
+          <canvas id="court-canvas-1" width="400" height="370"></canvas>
+          <p id="shotchart-stats-1"></p>
+        </div>
+        <div class="el-shotchart-player">
+          <h4 id="shotchart-name-2"></h4>
+          <canvas id="court-canvas-2" width="400" height="370"></canvas>
+          <p id="shotchart-stats-2"></p>
+        </div>
+      </div>
+      <div class="el-shotchart-legend">
+        <span><span class="dot-made"></span> Made</span>
+        <span><span class="dot-miss"></span> Missed</span>
+      </div>
     </div>
   </div>
 
@@ -666,6 +722,7 @@
     .catch(function(e) {
       qs('charts-loading').innerHTML = '<p class="el-error">Error generating charts: ' + e.message + '</p>';
     });
+    loadShotCharts(p1, p2);
   }
 
   /* ── PDF ────────────────────────────────────────────────── */
@@ -679,6 +736,193 @@
     if (_corrPct !== null && _corrPct !== undefined) params.corr_pct = _corrPct;
     window.location.href = url('/api/pdf', params);
   };
+
+  /* ── Shot Charts ────────────────────────────────────────── */
+  function drawCourt(ctx, w, h) {
+    // Court background
+    ctx.fillStyle = '#d4a96a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Scale factors: half-court in cm is ~1500 wide × 1400 deep
+    // Basket is near bottom-center of canvas
+    var scaleX = w / 1500;
+    var scaleY = h / 1420;
+    // Basket position in canvas coords
+    var bx = w / 2;
+    var by = h - 40 * scaleY;
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+
+    // Baseline
+    ctx.beginPath();
+    ctx.moveTo(0, h - 1); ctx.lineTo(w, h - 1);
+    ctx.stroke();
+
+    // Sidelines
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(0, h);
+    ctx.moveTo(w - 1, 0); ctx.lineTo(w - 1, h);
+    ctx.stroke();
+
+    // Paint (lane): 490cm wide, 580cm deep, centered
+    var paintW = 490 * scaleX;
+    var paintH = 580 * scaleY;
+    var paintX = (w - paintW) / 2;
+    var paintTop = h - paintH - 1;
+    ctx.strokeRect(paintX, paintTop, paintW, paintH);
+
+    // Free-throw circle (radius 180cm)
+    var ftR = 180 * scaleX;
+    var ftY = paintTop;
+    ctx.beginPath();
+    ctx.arc(bx, ftY, ftR, 0, Math.PI, true);   // top half (outside paint)
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(bx, ftY, ftR, 0, Math.PI, false);  // bottom half (inside paint, dashed)
+    ctx.setLineDash([8, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Restricted area (radius 125cm)
+    var raR = 125 * scaleX;
+    ctx.beginPath();
+    ctx.arc(bx, by, raR, Math.PI, 0, false);
+    ctx.stroke();
+
+    // Basket circle
+    ctx.beginPath();
+    ctx.arc(bx, by, 23 * scaleX, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e05020';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+
+    // Backboard
+    ctx.beginPath();
+    ctx.moveTo(bx - 45 * scaleX, by + 10 * scaleY);
+    ctx.lineTo(bx + 45 * scaleX, by + 10 * scaleY);
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.lineWidth = 2;
+
+    // 3-point line: corners at 900cm from baseline (y), then arc radius 675cm
+    // Corner 3 segments
+    var c3y = 90 * scaleY;   // corner distance from baseline ~90cm
+    var c3x = 750 * scaleX;  // sideline offset (half court width = 750)
+    var arcR = 675 * scaleX; // 3-point radius ~6.75m
+    // Left corner
+    ctx.beginPath();
+    ctx.moveTo(0, h - c3y);
+    ctx.lineTo(bx - arcR, h - c3y);
+    ctx.stroke();
+    // Right corner
+    ctx.beginPath();
+    ctx.moveTo(w, h - c3y);
+    ctx.lineTo(bx + arcR, h - c3y);
+    ctx.stroke();
+    // Arc
+    var arcAngleLeft  = Math.acos((bx - arcR - bx) / arcR);  // = π
+    var startAngle = Math.PI - Math.acos(arcR / arcR);
+    // Calculate angles from the basket center
+    var leftEndX  = bx - arcR;
+    var rightEndX = bx + arcR;
+    var arcY = h - c3y;
+    var startA = Math.atan2(arcY - by, leftEndX - bx);
+    var endA   = Math.atan2(arcY - by, rightEndX - bx);
+    ctx.beginPath();
+    ctx.arc(bx, by, arcR, startA, endA, false);
+    ctx.stroke();
+
+    // Center circle (half, at top of canvas)
+    ctx.beginPath();
+    ctx.arc(bx, 0, 180 * scaleX, 0, Math.PI, false);
+    ctx.stroke();
+  }
+
+  function shotToCanvas(sx, sy, w, h) {
+    // API coords: x in cm from center (±750), y in cm from basket toward midcourt (0–1400)
+    // Canvas: basket near bottom-center
+    var scaleX = w / 1500;
+    var scaleY = h / 1420;
+    var bx = w / 2;
+    var by = h - 40 * scaleY;
+    var cx = bx + sx * scaleX;
+    var cy = by - sy * scaleY;
+    return {x: cx, y: cy};
+  }
+
+  function renderShotChart(canvasId, shots, name, statText) {
+    var canvas = qs(canvasId);
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width;
+    var h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    drawCourt(ctx, w, h);
+
+    if (!shots || shots.length === 0) {
+      ctx.fillStyle = '#555';
+      ctx.font = 'bold 14px Ubuntu, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No shot data available', w / 2, h / 2);
+      return;
+    }
+
+    shots.forEach(function(shot) {
+      var pt = shotToCanvas(shot.x, shot.y, w, h);
+      // Only render shots within canvas bounds (with small margin)
+      if (pt.x < -10 || pt.x > w + 10 || pt.y < -10 || pt.y > h + 10) return;
+      if (shot.made) {
+        // Filled green circle
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(40, 180, 80, 0.75)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(20, 120, 50, 0.5)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      } else {
+        // Red X
+        var s = 4;
+        ctx.beginPath();
+        ctx.moveTo(pt.x - s, pt.y - s); ctx.lineTo(pt.x + s, pt.y + s);
+        ctx.moveTo(pt.x + s, pt.y - s); ctx.lineTo(pt.x - s, pt.y + s);
+        ctx.strokeStyle = 'rgba(210, 50, 50, 0.65)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    });
+  }
+
+  function loadShotCharts(p1, p2) {
+    qs('card-shotchart').classList.remove('el-hidden');
+    qs('shotchart-loading').classList.remove('el-hidden');
+    qs('shotchart-content').classList.add('el-hidden');
+    qs('shotchart-title').textContent = p1 + ' vs ' + p2 + ' — Shot Charts';
+
+    Promise.all([
+      fetch(url('/api/shotchart', {player: p1})).then(function(r) { return r.json(); }),
+      fetch(url('/api/shotchart', {player: p2})).then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      qs('shotchart-loading').classList.add('el-hidden');
+      qs('shotchart-content').classList.remove('el-hidden');
+
+      var d1 = results[0]; var d2 = results[1];
+
+      qs('shotchart-name-1').textContent = p1;
+      qs('shotchart-name-2').textContent = p2;
+
+      renderShotChart('court-canvas-1', d1.shots, p1);
+      renderShotChart('court-canvas-2', d2.shots, p2);
+
+      qs('shotchart-stats-1').textContent = d1.total_shots + ' attempts · ' + d1.made + ' made · ' + d1.fg_pct + '% FG';
+      qs('shotchart-stats-2').textContent = d2.total_shots + ' attempts · ' + d2.made + ' made · ' + d2.fg_pct + '% FG';
+    }).catch(function() {
+      qs('shotchart-loading').innerHTML = '<p class="el-error">Shot chart data unavailable</p>';
+    });
+  }
 
   // Auto-resize iframe in parent (Google Sites)
   function notifyHeight() {

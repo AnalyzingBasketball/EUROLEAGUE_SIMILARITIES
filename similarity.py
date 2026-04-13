@@ -20,6 +20,8 @@ SEASON_LABEL = "2025/2026"
 MIN_GAMES    = 5
 _API_V3 = "https://api-live.euroleague.net/v3/competitions/E/statistics/players"
 _API_V2 = "https://api-live.euroleague.net/v2/competitions/E/seasons"
+_SHOT_ENDPOINT = "https://live.euroleague.net/api/Points"
+_GAMES_ENDPOINT = "https://live.euroleague.net/api/Results"
 _POS_MAP = {1: "G", 2: "F", 3: "C", None: np.nan,
             "Guard": "G", "Forward": "F", "Center": "C"}
 _CACHE_TTL = 3600 * 6  # 6 hours
@@ -107,6 +109,7 @@ _CACHE = {
     "basic_num_cols": [],
     "team_abbrev": {}, "team_color": {}, "team_color2": {},
 }
+_SHOT_CACHE = {"data": None, "ts": 0.0}
 
 # ─────────────────────── API helpers ──────────────────────────
 def _headers():
@@ -292,6 +295,7 @@ def _fetch_players(season_code=SEASON_CODE, min_games=MIN_GAMES):
         _w = _safe_float(pm.get("wins")); _l = _safe_float(pm.get("losses"))
         win_pct = _w/(_w+_l) if (not np.isnan(_w) and not np.isnan(_l) and (_w+_l)>0) else np.nan
         rec = {
+            "Code": code,   # ← ADD THIS LINE FIRST
             # ── Identity ──────────────────────────────────────────
             "Player": _fmt_name(pl.get("name", "")),
             "Team":   _clean_team(team.get("name", "")),
@@ -784,4 +788,114 @@ def generate_charts(p1, p2):
         "player1": p1, "player2": p2,
         "team1": team1, "team2": team2,
         "charts": charts,
+    }
+
+# ─────────────────────── Shot data ────────────────────────────
+def _fetch_season_gamecodes():
+    """Return list of gamecodes (ints) for games played this season."""
+    try:
+        r = requests.get(
+            _GAMES_ENDPOINT,
+            params={"seasonCode": SEASON_CODE},
+            headers=_headers(), timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        rows = data if isinstance(data, list) else data.get("Rows", data.get("rows", []))
+        codes = []
+        for row in rows:
+            gc = row.get("gameCode", row.get("GameCode", row.get("gamenumber", row.get("GameNumber"))))
+            if gc is not None:
+                try:
+                    codes.append(int(gc))
+                except (ValueError, TypeError):
+                    pass
+        return sorted(set(codes))
+    except Exception:
+        # Fallback: try gamecodes 1–272 (34 rounds × 8 games)
+        return list(range(1, 273))
+
+
+def _fetch_all_shots():
+    """Fetch all shot data for the season. Returns dict keyed by player code."""
+    gamecodes = _fetch_season_gamecodes()
+    by_player = {}
+    for gc in gamecodes:
+        try:
+            r = requests.get(
+                _SHOT_ENDPOINT,
+                params={"gamecode": gc, "seasoncode": SEASON_CODE},
+                headers=_headers(), timeout=10,
+            )
+            if r.status_code != 200:
+                continue
+            rows = r.json().get("Rows", [])
+            for row in rows:
+                pid = str(row.get("ID_PLAYER", "")).strip()
+                if not pid:
+                    continue
+                action = str(row.get("ID_ACTION", "")).strip()
+                made = action in ("2FGM", "3FGM", "FTM", "2FGA_MADE", "3FGA_MADE")
+                # Some API versions use FASTBREAK prefix or different labels; treat any
+                # action ending with M (and not FTA/FGA) as made
+                if not made and action.endswith("M") and "FTA" not in action:
+                    made = True
+                try:
+                    cx = float(row.get("COORD_X", row.get("CoordX", "nan")))
+                    cy = float(row.get("COORD_Y", row.get("CoordY", "nan")))
+                except (ValueError, TypeError):
+                    continue
+                if cx != cx or cy != cy:  # NaN check
+                    continue
+                zone = str(row.get("ZONE", row.get("Zone", ""))).strip() or "Unknown"
+                by_player.setdefault(pid, []).append(
+                    {"x": cx, "y": cy, "made": made, "zone": zone}
+                )
+        except Exception:
+            continue
+    return by_player
+
+
+def load_shot_data(force=False):
+    """Lazy-load season shot data with 6-hour cache. Returns True if data available."""
+    now = time.time()
+    if not force and _SHOT_CACHE["data"] is not None and (now - _SHOT_CACHE["ts"]) < _CACHE_TTL:
+        return True
+    try:
+        print("Loading EuroLeague shot data…")
+        data = _fetch_all_shots()
+        _SHOT_CACHE["data"] = data
+        _SHOT_CACHE["ts"] = now
+        total = sum(len(v) for v in data.values())
+        print(f"Loaded {total} shots for {len(data)} players.")
+        return True
+    except Exception as e:
+        print(f"Shot data load failed: {e}")
+        _SHOT_CACHE["data"] = {}
+        _SHOT_CACHE["ts"] = now
+        return False
+
+
+def get_player_shots(player_name):
+    """Return shot chart data for a player by name. Loads shot data lazily."""
+    load_shot_data()
+    dt = _df()
+    # Find the player's API code from the dataframe
+    code_col = _find_col(dt, ["Code", "code"])
+    player_row = dt[dt["Player"] == player_name]
+    if player_row.empty:
+        return {"shots": [], "total_shots": 0, "made": 0, "missed": 0, "fg_pct": 0.0}
+    player_code = str(player_row.iloc[0][code_col]).strip() if code_col else ""
+    shots = _SHOT_CACHE.get("data", {}).get(player_code, []) if _SHOT_CACHE["data"] else []
+    # Filter out free throws for shot chart (only field goals)
+    shots = [s for s in shots if s.get("zone", "") not in ("", "Unknown") or True]
+    made_count = sum(1 for s in shots if s["made"])
+    missed_count = len(shots) - made_count
+    fg_pct = round(made_count / len(shots) * 100, 1) if shots else 0.0
+    return {
+        "shots": shots,
+        "total_shots": len(shots),
+        "made": made_count,
+        "missed": missed_count,
+        "fg_pct": fg_pct,
     }
