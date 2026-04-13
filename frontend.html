@@ -454,6 +454,10 @@
 
 <script>
 (function() {
+  // Pre-load court background image
+  var _courtImg = new Image();
+  _courtImg.src = '/assets/court.png';
+
   var _player  = null;
   var _compare = null;
   var _corrPct = null;
@@ -738,119 +742,60 @@
   };
 
   /* ── Shot Charts ────────────────────────────────────────── */
-  function drawCourt(ctx, w, h) {
-    // Court background
-    ctx.fillStyle = '#d4a96a';
-    ctx.fillRect(0, 0, w, h);
+  // Coordinate calibration for the court image background.
+  // The image shows a half-court: basket near bottom-center, half-court line near top.
+  // Tweak these if shots appear shifted relative to the court markings.
+  var _IMG_BASKET_Y = 0.83;  // basket center as fraction of canvas height from top
+  var _IMG_COURT_W  = 0.88;  // court width as fraction of canvas width (excludes side borders)
+  var _IMG_TOP_Y    = 0.05;  // top of visible court (half-court line) as fraction from top
 
-    // Scale factors: half-court in cm is ~1500 wide × 1400 deep
-    // Basket is near bottom-center of canvas
+  function _courtScale(w, h) {
+    if (_courtImg.complete && _courtImg.naturalWidth > 0) {
+      var bx     = 0.5 * w;
+      var by     = _IMG_BASKET_Y * h;
+      var scaleX = _IMG_COURT_W * w / 1500;
+      var scaleY = (_IMG_BASKET_Y - _IMG_TOP_Y) * h / 1400;
+      return { bx: bx, by: by, scaleX: scaleX, scaleY: scaleY, useImg: true };
+    }
+    // Fallback: programmatic court proportions
     var scaleX = w / 1500;
     var scaleY = h / 1420;
-    // Basket position in canvas coords
-    var bx = w / 2;
-    var by = h - 40 * scaleY;
+    return { bx: w / 2, by: h - 40 * scaleY, scaleX: scaleX, scaleY: scaleY, useImg: false };
+  }
 
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-
-    // Baseline
-    ctx.beginPath();
-    ctx.moveTo(0, h - 1); ctx.lineTo(w, h - 1);
-    ctx.stroke();
-
-    // Sidelines
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(0, h);
-    ctx.moveTo(w - 1, 0); ctx.lineTo(w - 1, h);
-    ctx.stroke();
-
-    // Paint (lane): 490cm wide, 580cm deep, centered
-    var paintW = 490 * scaleX;
-    var paintH = 580 * scaleY;
-    var paintX = (w - paintW) / 2;
-    var paintTop = h - paintH - 1;
-    ctx.strokeRect(paintX, paintTop, paintW, paintH);
-
-    // Free-throw circle (radius 180cm)
-    var ftR = 180 * scaleX;
-    var ftY = paintTop;
-    ctx.beginPath();
-    ctx.arc(bx, ftY, ftR, 0, Math.PI, true);   // top half (outside paint)
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(bx, ftY, ftR, 0, Math.PI, false);  // bottom half (inside paint, dashed)
-    ctx.setLineDash([8, 6]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Restricted area (radius 125cm)
-    var raR = 125 * scaleX;
-    ctx.beginPath();
-    ctx.arc(bx, by, raR, Math.PI, 0, false);
-    ctx.stroke();
-
-    // Basket circle
-    ctx.beginPath();
-    ctx.arc(bx, by, 23 * scaleX, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e05020';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-
-    // Backboard
-    ctx.beginPath();
-    ctx.moveTo(bx - 45 * scaleX, by + 10 * scaleY);
-    ctx.lineTo(bx + 45 * scaleX, by + 10 * scaleY);
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.lineWidth = 2;
-
-    // 3-point line: corners at 900cm from baseline (y), then arc radius 675cm
-    // Corner 3 segments
-    var c3y = 90 * scaleY;   // corner distance from baseline ~90cm
-    var c3x = 750 * scaleX;  // sideline offset (half court width = 750)
-    var arcR = 675 * scaleX; // 3-point radius ~6.75m
-    // Left corner
-    ctx.beginPath();
-    ctx.moveTo(0, h - c3y);
-    ctx.lineTo(bx - arcR, h - c3y);
-    ctx.stroke();
-    // Right corner
-    ctx.beginPath();
-    ctx.moveTo(w, h - c3y);
-    ctx.lineTo(bx + arcR, h - c3y);
-    ctx.stroke();
-    // Arc
-    var arcAngleLeft  = Math.acos((bx - arcR - bx) / arcR);  // = π
-    var startAngle = Math.PI - Math.acos(arcR / arcR);
-    // Calculate angles from the basket center
-    var leftEndX  = bx - arcR;
-    var rightEndX = bx + arcR;
-    var arcY = h - c3y;
-    var startA = Math.atan2(arcY - by, leftEndX - bx);
-    var endA   = Math.atan2(arcY - by, rightEndX - bx);
-    ctx.beginPath();
-    ctx.arc(bx, by, arcR, startA, endA, false);
-    ctx.stroke();
-
-    // Center circle (half, at top of canvas)
-    ctx.beginPath();
-    ctx.arc(bx, 0, 180 * scaleX, 0, Math.PI, false);
-    ctx.stroke();
+  function drawCourt(ctx, w, h) {
+    var s = _courtScale(w, h);
+    if (s.useImg) {
+      // Draw the real court image as background
+      ctx.drawImage(_courtImg, 0, 0, w, h);
+    } else {
+      // Programmatic fallback (no image available)
+      ctx.fillStyle = '#d4a96a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      var bx = s.bx; var by = s.by;
+      var sx = s.scaleX; var sy = s.scaleY;
+      ctx.strokeRect(0, 0, w, h);
+      var paintW = 490*sx, paintH = 580*sy;
+      ctx.strokeRect((w-paintW)/2, h-paintH, paintW, paintH);
+      ctx.beginPath(); ctx.arc(bx, h-580*sy, 180*sx, 0, Math.PI, true); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, 125*sx, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, 23*sx, 0, Math.PI*2);
+      ctx.strokeStyle = '#e05020'; ctx.stroke(); ctx.strokeStyle = '#ffffff';
+      var arcR = 675*sx, c3y = 90*sy;
+      ctx.beginPath(); ctx.moveTo(0, h-c3y); ctx.lineTo(bx-arcR, h-c3y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w, h-c3y); ctx.lineTo(bx+arcR, h-c3y); ctx.stroke();
+      var startA = Math.atan2(h-c3y-by, -arcR);
+      var endA   = Math.atan2(h-c3y-by,  arcR);
+      ctx.beginPath(); ctx.arc(bx, by, arcR, startA, endA, false); ctx.stroke();
+    }
   }
 
   function shotToCanvas(sx, sy, w, h) {
-    // API coords: x in cm from center (±750), y in cm from basket toward midcourt (0–1400)
-    // Canvas: basket near bottom-center
-    var scaleX = w / 1500;
-    var scaleY = h / 1420;
-    var bx = w / 2;
-    var by = h - 40 * scaleY;
-    var cx = bx + sx * scaleX;
-    var cy = by - sy * scaleY;
-    return {x: cx, y: cy};
+    // API coords: x in cm from basket center (±750), y in cm from basket toward midcourt (0–1400)
+    var s = _courtScale(w, h);
+    return { x: s.bx + sx * s.scaleX, y: s.by - sy * s.scaleY };
   }
 
   function renderShotChart(canvasId, shots, name, statText) {
