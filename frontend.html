@@ -456,7 +456,12 @@
 (function() {
   // Pre-load court background image
   var _courtImg = new Image();
+  // Try local path first; fall back to GitHub raw if not served locally
   _courtImg.src = '/assets/court.png';
+  _courtImg.onerror = function() {
+    _courtImg.onerror = null;
+    _courtImg.src = 'https://raw.githubusercontent.com/AnalyzingBasketball/EUROLEAGUE_SIMILARITIES/main/assets/court.png';
+  };
 
   var _player  = null;
   var _compare = null;
