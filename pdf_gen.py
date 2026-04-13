@@ -21,6 +21,7 @@ _LOGO_CACHE: dict = {}
 def _el_logo_buf():
     if "el" in _LOGO_CACHE:
         return _LOGO_CACHE["el"]
+    # 1) PNG ya convertido por Docker (rsvg-convert en Dockerfile)
     png_path = os.path.join(_ASSETS, "euroleague_logo.png")
     if os.path.exists(png_path):
         with open(png_path, "rb") as f:
@@ -29,18 +30,32 @@ def _el_logo_buf():
             buf = io.BytesIO(data)
             _LOGO_CACHE["el"] = buf
             return buf
-    try:
-        url = ("https://upload.wikimedia.org/wikipedia/en/thumb/"
-               "2/2e/Euroleague_Basketball_logo.svg/"
-               "200px-Euroleague_Basketball_logo.svg.png")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        data = urllib.request.urlopen(req, timeout=8).read()
-        if data[:8] == b"\x89PNG\r\n\x1a\n":
+    # 2) Convertir SVG con cairosvg si está disponible
+    svg_path = os.path.join(_ASSETS, "euroleague_logo.svg")
+    if os.path.exists(svg_path):
+        try:
+            import cairosvg
+            data = cairosvg.svg2png(url=svg_path, output_width=300)
             buf = io.BytesIO(data)
             _LOGO_CACHE["el"] = buf
             return buf
-    except Exception:
-        pass
+        except Exception:
+            pass
+    # 3) Descargar PNG desde Wikimedia
+    for url in [
+        "https://upload.wikimedia.org/wikipedia/en/thumb/2/2e/Euroleague_Basketball_logo.svg/200px-Euroleague_Basketball_logo.svg.png",
+        "https://upload.wikimedia.org/wikipedia/en/2/2e/Euroleague_Basketball_logo.svg",
+    ]:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            data = urllib.request.urlopen(req, timeout=8).read()
+            if data[:8] == b"\x89PNG\r\n\x1a\n":
+                buf = io.BytesIO(data)
+                _LOGO_CACHE["el"] = buf
+                return buf
+        except Exception:
+            pass
+    # 4) Badge generado con matplotlib como último recurso
     buf = _gen_el_badge()
     _LOGO_CACHE["el"] = buf
     return buf
@@ -66,24 +81,53 @@ def _gen_el_badge():
 
 
 def _gen_ab_badge():
-    """Badge con texto blanco para colocar sobre fondo azul (#0047ff)."""
-    from matplotlib.patches import Circle
-    fig, ax = plt.subplots(figsize=(2.4, 0.72))
-    ax.set_xlim(0, 2.4); ax.set_ylim(0, 0.72)
+    """
+    Recreación del logo Analyzing Basketball.
+    Fondo blanco con icono basket+datos y texto corporativo oscuro.
+    Se coloca sobre una píldora blanca en la franja azul del header.
+    """
+    from matplotlib.patches import Circle, Arc, FancyArrowPatch
+    import matplotlib.lines as mlines
+
+    fig, ax = plt.subplots(figsize=(2.6, 0.90))
+    ax.set_xlim(0, 2.6); ax.set_ylim(0, 0.90)
     ax.set_aspect("equal"); ax.axis("off")
-    fig.patch.set_alpha(0)
-    # Círculo naranja (icono corporativo)
-    ax.add_patch(Circle((0.36, 0.36), 0.30, color="#ff6b1a", zorder=1))
-    ax.plot([0.36, 0.36], [0.06, 0.66], "w-", lw=1.4, zorder=2)
-    ax.plot([0.06, 0.66], [0.36, 0.36], "w-", lw=1.4, zorder=2)
-    # Texto blanco
-    ax.text(0.76, 0.48, "Analyzing Basketball", ha="left", va="center",
-            fontsize=7.5, fontweight="bold", color="white")
-    ax.text(0.76, 0.20, "analyzingbasketball.com", ha="left", va="center",
-            fontsize=5.0, color="#ccddff")
+    fig.patch.set_facecolor("white")
+
+    # ── Balón de baloncesto ──────────────────────────────────────
+    cx, cy, r = 0.45, 0.45, 0.36
+    ax.add_patch(Circle((cx, cy), r, color="#e8740c", zorder=2))
+    # Costuras (líneas negras curvas simplificadas)
+    ax.plot([cx, cx], [cy - r + 0.03, cy + r - 0.03], color="#1a1a2e", lw=1.4, zorder=3)
+    ax.plot([cx - r + 0.03, cx + r - 0.03], [cy, cy], color="#1a1a2e", lw=1.4, zorder=3)
+    ax.add_patch(Arc((cx - 0.18, cy), 0.36, 0.52,
+                     angle=0, theta1=-90, theta2=90, color="#1a1a2e", lw=1.2, zorder=3))
+    ax.add_patch(Arc((cx + 0.18, cy), 0.36, 0.52,
+                     angle=0, theta1=90, theta2=270, color="#1a1a2e", lw=1.2, zorder=3))
+
+    # ── Arco de datos (azul claro, parcial) ─────────────────────
+    ax.add_patch(Arc((cx, cy), 0.88, 0.88,
+                     angle=0, theta1=20, theta2=160, color="#0047ff", lw=2.0, zorder=1))
+
+    # ── Mini barras de estadística ───────────────────────────────
+    bars_x = [0.90, 0.98, 1.06, 1.14, 1.22]
+    bars_h = [0.25, 0.42, 0.35, 0.55, 0.30]
+    bar_colors = ["#aaaaaa", "#aaaaaa", "#ff6b1a", "#aaaaaa", "#aaaaaa"]
+    for bx, bh, bc in zip(bars_x, bars_h, bar_colors):
+        ax.add_patch(plt.Rectangle((bx - 0.025, 0.10), 0.05, bh,
+                                   color=bc, zorder=1))
+
+    # ── Texto corporativo ────────────────────────────────────────
+    ax.text(1.32, 0.62, "ANALYZING", ha="left", va="center",
+            fontsize=7.8, fontweight="bold", color="#1a1a2e")
+    ax.text(1.32, 0.40, "BASKETBALL", ha="left", va="center",
+            fontsize=7.8, fontweight="bold", color="#1a1a2e")
+    ax.text(1.32, 0.18, "DATA  INTELLIGENCE", ha="left", va="center",
+            fontsize=4.8, color="#555555", letterspacing=0.5)
+
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=180, bbox_inches="tight",
-                facecolor="none", transparent=True)
+                facecolor="white")
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -110,18 +154,21 @@ def _make_page_decorator(fr, fb):
         canvas.setFillColor(BLUE)
         canvas.rect(0, PH - HDR_H, PW, HDR_H, fill=1, stroke=0)
 
-        # Logo AB — esquina superior izquierda
+        # Logo AB — píldora blanca + imagen sobre fondo azul
         try:
             ab = _gen_ab_badge(); ab.seek(0)
             ir = ImageReader(ab); iw, ih = ir.getSize()
             inner_h = HDR_H - 2 * PAD
-            scale = min(inner_h * 3.2 / iw, inner_h / ih)
-            img_h = ih * scale
-            canvas.drawImage(ir,
-                             PAD + 4,
-                             PH - HDR_H + (HDR_H - img_h) / 2,
-                             width=iw * scale, height=img_h,
-                             mask="auto")
+            scale = min(inner_h * 3.6 / iw, inner_h / ih)
+            img_w = iw * scale; img_h = ih * scale
+            img_x = PAD + 6
+            img_y = PH - HDR_H + (HDR_H - img_h) / 2
+            # Fondo blanco redondeado detrás del logo
+            canvas.setFillColor(WHITE)
+            canvas.roundRect(img_x - 4, img_y - 3,
+                             img_w + 8, img_h + 6, 5, fill=1, stroke=0)
+            canvas.drawImage(ir, img_x, img_y,
+                             width=img_w, height=img_h, mask="auto")
         except Exception:
             canvas.setFont(fb, 9)
             canvas.setFillColor(WHITE)
@@ -205,29 +252,65 @@ def _safe_max(arr, fallback=1.0):
     return m if np.isfinite(m) and m > 0 else fallback
 
 
-def _make_table(df, font_reg, font_bold, font_size=6):
+def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
+    """
+    Construye una Table de ReportLab que encaja exactamente en doc_width.
+    Columnas de texto conocidas reciben ancho fijo; el resto se distribuye
+    uniformemente con el espacio sobrante.
+    """
     from reportlab.platypus import Table, TableStyle
     from reportlab.lib import colors
+
     df_ = df.reset_index(drop=True).copy()
-    # Format floats to 2 decimal places
     for col in df_.columns:
         if pd.api.types.is_float_dtype(df_[col]):
             df_[col] = df_[col].map(lambda x: f"{x:.2f}" if pd.notna(x) else "")
         else:
             df_[col] = df_[col].fillna("").astype(str)
+
+    # ── Ancho de columnas ────────────────────────────────────────
+    # Columnas de texto que reconocemos y les damos ancho fijo
+    FIXED_W = {
+        "player":         64,
+        "similar player": 80,
+        "team":           30,
+        "team3":          28,
+        "% match":        38,
+        "role":           46,
+        "pos":            18,
+    }
+    cols = list(df_.columns)
+    n = len(cols)
+    fixed = {}
+    for i, c in enumerate(cols):
+        w = FIXED_W.get(str(c).lower().strip())
+        if w:
+            fixed[i] = w
+
+    fixed_total = sum(fixed.values())
+    n_free = n - len(fixed)
+    free_w = max(14, (doc_width - fixed_total) / n_free) if n_free > 0 else 20
+    col_widths = [fixed.get(i, free_w) for i in range(n)]
+
     data = [list(map(str, df_.columns))] + [list(map(str, r)) for _, r in df_.iterrows()]
-    t = Table(data, repeatRows=1)
+    t = Table(data, repeatRows=1, colWidths=col_widths)
     t.setStyle(TableStyle([
         ("FONTNAME",       (0, 0), (-1,  0), font_bold),
         ("FONTNAME",       (0, 1), (-1, -1), font_reg),
         ("FONTSIZE",       (0, 0), (-1, -1), font_size),
+        ("LEADING",        (0, 0), (-1, -1), font_size + 2),
         ("TEXTCOLOR",      (0, 0), (-1,  0), colors.whitesmoke),
-        ("BACKGROUND",     (0, 0), (-1,  0), colors.HexColor("#1b3a6b")),
-        ("ALIGN",          (0, 0), (-1,  0), "CENTER"),
+        ("BACKGROUND",     (0, 0), (-1,  0), colors.HexColor("#0047ff")),
+        ("ALIGN",          (0, 0), (-1, -1), "CENTER"),
+        ("ALIGN",          (0, 1), (1,  -1), "LEFT"),   # Player/Team alineados izq
         ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID",           (0, 0), (-1, -1), 0.25, colors.grey),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.HexColor("#f0f4ff")]),
-        ("ROTATE",         (0, 0), (-1,  0), 90),
+        ("GRID",           (0, 0), (-1, -1), 0.25, colors.HexColor("#cccccc")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+         [colors.white, colors.HexColor("#f0f4ff")]),
+        ("TOPPADDING",     (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING",  (0, 0), (-1, -1), 2),
+        ("LEFTPADDING",    (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING",   (0, 0), (-1, -1), 2),
     ]))
     return t
 
@@ -301,6 +384,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
                             leftMargin=24, rightMargin=24,
                             topMargin=58, bottomMargin=30)
+    DOC_W = int(landscape(A4)[0]) - 48   # 794 pts disponibles
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle("CH3", parent=styles["Heading3"], alignment=TA_CENTER,
                               fontName=FONT_BOLD, fontSize=10))
@@ -325,7 +409,8 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     } for r in top_rows])
     if not df_top.empty:
         elems.append(Paragraph("<b>Top similar players</b>", styles["CH3"]))
-        elems.append(_make_table(df_top, FONT_REG, FONT_BOLD, font_size=7))
+        elems.append(_make_table(df_top, FONT_REG, FONT_BOLD, font_size=7,
+                                 doc_width=DOC_W))
         elems.append(Spacer(1, 6))
 
     df_multi = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + basic_cols]
@@ -333,8 +418,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     df_multi["_o"] = df_multi["Player"].map({p: i for i, p in enumerate(roster)})
     df_multi = df_multi.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
     elems.append(Paragraph("<b>Basic stats (group)</b>", styles["CH3"]))
-    elems.append(_make_table(df_multi, FONT_REG, FONT_BOLD, font_size=5))
-    elems.append(Spacer(1, 4))
+    elems.append(_make_table(df_multi, FONT_REG, FONT_BOLD, font_size=5,
+                             doc_width=DOC_W))
+    elems.append(PageBreak())   # tabla grande → página propia
 
     df_adv = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + stats_cols]
               .drop_duplicates("Player"))
@@ -345,7 +431,8 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             df_adv[c] = pd.to_numeric(df_adv[c], errors="coerce").map(
                 lambda x: f"{x:.2f}" if pd.notna(x) else "")
     elems.append(Paragraph("<b>Advanced stats (group)</b>", styles["CH3"]))
-    elems.append(_make_table(df_adv, FONT_REG, FONT_BOLD, font_size=5))
+    elems.append(_make_table(df_adv, FONT_REG, FONT_BOLD, font_size=5,
+                             doc_width=DOC_W))
     elems.append(PageBreak())
 
     # ═══ PAGE 2: Games+Min chart + Percentages chart ═══
@@ -380,8 +467,9 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     # ═══ PAGE 3: H2H tables + Per-game volumes ═══
     h2h_basic = pair[["Team3"] + basic_cols].rename(columns={"Team3": "Team"}).reset_index()
     elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Basic)</b>", styles["CH3"]))
-    elems.append(_make_table(h2h_basic, FONT_REG, FONT_BOLD, font_size=5))
-    elems.append(Spacer(1, 4))
+    elems.append(_make_table(h2h_basic, FONT_REG, FONT_BOLD, font_size=5,
+                             doc_width=DOC_W))
+    elems.append(Spacer(1, 6))
 
     h2h_adv = pair[["Team3"] + stats_cols].copy().rename(columns={"Team3": "Team"})
     for c in rate_cols + per36_cols:
@@ -389,7 +477,8 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             h2h_adv[c] = pd.to_numeric(h2h_adv[c], errors="coerce").map(
                 lambda x: f"{x:.2f}" if pd.notna(x) else "")
     elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Advanced)</b>", styles["CH3"]))
-    elems.append(_make_table(h2h_adv.reset_index(), FONT_REG, FONT_BOLD, font_size=5))
+    elems.append(_make_table(h2h_adv.reset_index(), FONT_REG, FONT_BOLD, font_size=5,
+                             doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
     vol_targets = ["FG","FGA","3P","3PA","FT","FTA","TRB","AST","STL","BLK","TOV","PF","PTS"]
