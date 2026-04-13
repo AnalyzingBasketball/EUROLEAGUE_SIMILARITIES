@@ -272,13 +272,14 @@ def _make_table(df, font_reg, font_bold, font_size=6, doc_width=794):
 
     # Columnas de texto con ancho fijo
     FIXED_W = {
-        "player":         62,
-        "similar player": 75,
-        "team":           28,
-        "team3":          28,
-        "% match":        36,
-        "role":           44,
-        "pos":            16,
+        "player":          68,
+        "similar player":  80,
+        "team":            30,
+        "team3":           30,
+        "full team name": 160,
+        "% match":         40,
+        "role":            44,
+        "pos":             16,
     }
     cols = list(df_.columns)
     n    = len(cols)
@@ -384,12 +385,14 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     )
     top_rows = sim_result["similar"]
 
-    basic_names = ["G","MP","FG","FGA","FG%","3P","3PA","3P%","2P","2PA","2P%","EFG%",
-                   "FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS"]
+    basic_names_A = ["G","MP","FG","FGA","FG%","3P","3PA","3P%","2P","2PA","2P%","EFG%"]
+    basic_names_B = ["FT","FTA","FT%","ORB","DRB","TRB","AST","STL","BLK","TOV","PF","PTS"]
     rate_cols  = sim._CACHE["rate_cols"]
     per36_cols = sim._CACHE["per36_cols"]
     stats_cols = sim._CACHE["stats_cols"]
-    basic_cols = sim._present(dt, basic_names)
+    basic_cols_A = sim._present(dt, basic_names_A)
+    basic_cols_B = sim._present(dt, basic_names_B)
+    basic_cols   = basic_cols_A + basic_cols_B   # lista completa (gráficos)
 
     roster = [p1] + [r["player"] for r in top_rows]
     uniq   = dt.drop_duplicates("Player").set_index("Player")
@@ -425,23 +428,33 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     elems.append(Spacer(1, 8))
 
     df_top = pd.DataFrame([{
-        "Similar Player": r["player"], "Team": r["team"],
+        "Similar Player": r["player"],
+        "Team": (uniq.loc[r["player"], "Team3"]
+                 if r["player"] in uniq.index else r["team"][:14]),
+        "Full Team Name": r["team"],
         "% Match": f"{r['correlation_pct']:.2f}%"
     } for r in top_rows])
     if not df_top.empty:
         elems.append(Paragraph("<b>Top similar players</b>", styles["CH3"]))
-        elems.append(_make_table(df_top, FONT_REG, FONT_BOLD, font_size=7,
+        elems.append(_make_table(df_top, FONT_REG, FONT_BOLD, font_size=9,
                                  doc_width=DOC_W))
-        elems.append(Spacer(1, 6))
+        elems.append(Spacer(1, 8))
 
-    df_multi = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + basic_cols]
-                .drop_duplicates("Player"))
-    df_multi["_o"] = df_multi["Player"].map({p: i for i, p in enumerate(roster)})
-    df_multi = df_multi.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
-    elems.append(Paragraph("<b>Basic stats (group)</b>", styles["CH3"]))
-    elems.append(_make_table(_drop_empty_cols(df_multi), FONT_REG, FONT_BOLD, font_size=5,
-                             doc_width=DOC_W))
-    elems.append(PageBreak())   # tabla grande → página propia
+    def _basic_group_df(cols_subset):
+        d = (dt.loc[dt["Player"].isin(roster), ["Player", "Team3"] + cols_subset]
+             .drop_duplicates("Player"))
+        d["_o"] = d["Player"].map({p: i for i, p in enumerate(roster)})
+        d = d.sort_values("_o").drop(columns="_o").rename(columns={"Team3": "Team"})
+        return _drop_empty_cols(d)
+
+    elems.append(Paragraph("<b>Basic stats — Shooting (group)</b>", styles["CH3"]))
+    elems.append(_make_table(_basic_group_df(basic_cols_A), FONT_REG, FONT_BOLD,
+                             font_size=7, doc_width=DOC_W))
+    elems.append(Spacer(1, 8))
+    elems.append(Paragraph("<b>Basic stats — Rebounds, Defense & Production (group)</b>", styles["CH3"]))
+    elems.append(_make_table(_basic_group_df(basic_cols_B), FONT_REG, FONT_BOLD,
+                             font_size=7, doc_width=DOC_W))
+    elems.append(PageBreak())
 
     # Advanced stats: dividir en dos bloques para que quepan en A4
     adv_cols_A = [c for c in (rate_cols + sim._present(dt, ["ORB%","DRB%","REB%","AST%","TOV%","A2T","GS%","WIN%"])) if c in dt.columns]
@@ -460,11 +473,11 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
 
     if adv_cols_A:
         elems.append(Paragraph("<b>Advanced stats — Rates & Percentages (group)</b>", styles["CH3"]))
-        elems.append(_make_table(_adv_df(adv_cols_A), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
-        elems.append(Spacer(1, 6))
+        elems.append(_make_table(_adv_df(adv_cols_A), FONT_REG, FONT_BOLD, font_size=7, doc_width=DOC_W))
+        elems.append(Spacer(1, 8))
     if adv_cols_B:
         elems.append(Paragraph("<b>Advanced stats — Per 36 & Scoring (group)</b>", styles["CH3"]))
-        elems.append(_make_table(_adv_df(adv_cols_B), FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(_make_table(_adv_df(adv_cols_B), FONT_REG, FONT_BOLD, font_size=7, doc_width=DOC_W))
     elems.append(PageBreak())
 
     # ═══ PAGE 2: Games+Min chart + Percentages chart ═══
@@ -497,11 +510,19 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
     elems.append(PageBreak())
 
     # ═══ PAGE 3: H2H tables + Per-game volumes ═══
-    h2h_basic = pair[["Team3"] + basic_cols].rename(columns={"Team3": "Team"}).reset_index()
-    elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Basic)</b>", styles["CH3"]))
-    elems.append(_make_table(_drop_empty_cols(h2h_basic), FONT_REG, FONT_BOLD, font_size=5,
-                             doc_width=DOC_W))
-    elems.append(Spacer(1, 6))
+    def _h2h_basic_df(cols_subset):
+        d = (pair[["Team3"] + [c for c in cols_subset if c in pair.columns]]
+             .rename(columns={"Team3": "Team"}).reset_index())
+        return _drop_empty_cols(d)
+
+    elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Basic — Shooting)</b>", styles["CH3"]))
+    elems.append(_make_table(_h2h_basic_df(basic_cols_A), FONT_REG, FONT_BOLD,
+                             font_size=7, doc_width=DOC_W))
+    elems.append(Spacer(1, 8))
+    elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Basic — Rebounds, Defense & Production)</b>", styles["CH3"]))
+    elems.append(_make_table(_h2h_basic_df(basic_cols_B), FONT_REG, FONT_BOLD,
+                             font_size=7, doc_width=DOC_W))
+    elems.append(Spacer(1, 8))
 
     # H2H Advanced — dividir igual que el grupo
     if adv_cols_A:
@@ -512,8 +533,8 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
                     lambda x: f"{x:.2f}" if pd.notna(x) else "")
         h2h_adv_A = _drop_empty_cols(h2h_adv_A.reset_index())
         elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Advanced Rates)</b>", styles["CH3"]))
-        elems.append(_make_table(h2h_adv_A, FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
-        elems.append(Spacer(1, 4))
+        elems.append(_make_table(h2h_adv_A, FONT_REG, FONT_BOLD, font_size=7, doc_width=DOC_W))
+        elems.append(Spacer(1, 8))
     if adv_cols_B:
         h2h_adv_B = pair[["Team3"] + [c for c in adv_cols_B if c in pair.columns]].copy().rename(columns={"Team3": "Team"})
         for c in adv_cols_B:
@@ -522,7 +543,7 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
                     lambda x: f"{x:.2f}" if pd.notna(x) else "")
         h2h_adv_B = _drop_empty_cols(h2h_adv_B.reset_index())
         elems.append(Paragraph(f"<b>H2H — {p1} vs {p2} (Per 36 & Scoring)</b>", styles["CH3"]))
-        elems.append(_make_table(h2h_adv_B, FONT_REG, FONT_BOLD, font_size=5, doc_width=DOC_W))
+        elems.append(_make_table(h2h_adv_B, FONT_REG, FONT_BOLD, font_size=7, doc_width=DOC_W))
     elems.append(Spacer(1, 6))
 
     vol_targets = ["FG","FGA","3P","3PA","FT","FTA","TRB","AST","STL","BLK","TOV","PF","PTS"]
