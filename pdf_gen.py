@@ -340,6 +340,58 @@ def _fig_image(fig, doc, dpi=180, max_w_ratio=0.96, max_h_ratio=0.72):
     return Image(buf, width=w_pts * scale, height=h_pts * scale)
 
 
+def _draw_shot_chart_ax(ax, shots, player_name, color):
+    """Draw a shot chart on a matplotlib Axes using the court image background."""
+    court_path = os.path.join(_ASSETS, "court.png")
+    if os.path.exists(court_path):
+        import matplotlib.image as mpimg
+        court_img = mpimg.imread(court_path)
+        # extent=[left, right, bottom, top] — use normal 0-1 coords, then invert y-axis
+        ax.imshow(court_img, aspect="auto", extent=[0, 1, 0, 1], zorder=0)
+        ax.invert_yaxis()
+    else:
+        ax.set_facecolor("#d4a96a")
+        ax.set_xlim(0, 1); ax.invert_yaxis()
+
+    # Coordinate mapping matches JS constants:
+    # _IMG_BASKET_Y=0.83, _IMG_COURT_W=0.88, _IMG_TOP_Y=0.05
+    # shot.x in cm from basket center (±750), shot.y in cm from basket (0→midcourt)
+    IMG_BASKET_Y = 0.83
+    IMG_COURT_W  = 0.88
+    IMG_TOP_Y    = 0.05
+    scale_x = IMG_COURT_W / 1500   # fraction per cm
+    scale_y = (IMG_BASKET_Y - IMG_TOP_Y) / 1400
+
+    if shots:
+        made_x, made_y, miss_x, miss_y = [], [], [], []
+        for s in shots:
+            px = 0.5 + s["x"] * scale_x
+            py = IMG_BASKET_Y - s["y"] * scale_y
+            if s["made"]:
+                made_x.append(px); made_y.append(py)
+            else:
+                miss_x.append(px); miss_y.append(py)
+        if made_x:
+            ax.scatter(made_x, made_y, s=12, c="#28b450",
+                       alpha=0.75, linewidths=0.4, edgecolors="#147832", zorder=3)
+        if miss_x:
+            ax.scatter(miss_x, miss_y, s=16, c="#d23232", alpha=0.65,
+                       marker="x", linewidths=1.2, zorder=3)
+    else:
+        ax.text(0.5, 0.5, "No shot data available", ha="center", va="center",
+                transform=ax.transAxes, color="gray", fontsize=9)
+
+    fg_pct = (sum(1 for s in shots if s["made"]) / len(shots) * 100) if shots else 0.0
+    total  = len(shots)
+    made   = sum(1 for s in shots if s["made"])
+    ax.set_title(
+        f"{player_name}\n{total} att · {made} made · {fg_pct:.1f}% FG",
+        fontsize=8, pad=4
+    )
+    ax.set_xlim(0, 1)
+    ax.axis("off")
+
+
 def _pct_vec(row, population):
     out = []
     for c in row.index:
@@ -622,6 +674,35 @@ def generate_pdf(p1, p2, k=5, include_same=False, team="", pos="", nat="",
             Paragraph("<b>Radar — Global percentiles (0–100)</b>", styles["CH3"]),
             _fig_image(fig, doc, max_h_ratio=0.70),
         ]))
+
+    # ═══ PAGE 6: Shot Charts ═══
+    try:
+        shots1 = sim.get_player_shots(p1)
+    except Exception:
+        shots1 = {"shots": [], "total_shots": 0, "made": 0, "missed": 0, "fg_pct": 0.0}
+    try:
+        shots2 = sim.get_player_shots(p2)
+    except Exception:
+        shots2 = {"shots": [], "total_shots": 0, "made": 0, "missed": 0, "fg_pct": 0.0}
+
+    import matplotlib.lines as mlines
+    elems.append(PageBreak())
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5.2))
+    _draw_shot_chart_ax(axes[0], shots1.get("shots", []), p1, c1)
+    _draw_shot_chart_ax(axes[1], shots2.get("shots", []), p2, c2)
+    handles = [
+        mlines.Line2D([], [], marker="o", color="w", markerfacecolor="#28b450",
+                      markersize=6, label="Made"),
+        mlines.Line2D([], [], marker="x", color="#d23232",
+                      markersize=6, markeredgewidth=1.5, label="Missed"),
+    ]
+    fig.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 0.01),
+               ncol=2, frameon=False, fontsize=8)
+    plt.tight_layout(rect=[0, 0.04, 1, 1])
+    elems.append(KeepTogether([
+        Paragraph("<b>Shot Charts — Field goal attempts this season</b>", styles["CH3"]),
+        _fig_image(fig, doc, max_h_ratio=0.72),
+    ]))
 
     doc.build(elems, onFirstPage=on_page, onLaterPages=on_page)
     return buf.getvalue()
