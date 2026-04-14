@@ -208,6 +208,20 @@ def api_shotdebug():
     return out
 
 
+@app.get("/api/version")
+def api_version():
+    import subprocess, inspect
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                         text=True).strip()
+    except Exception:
+        commit = "unknown"
+    return {
+        "commit": commit,
+        "pdf_shot_chart": hasattr(pdf_gen, "_draw_shot_chart_ax"),
+    }
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
